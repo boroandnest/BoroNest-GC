@@ -136,14 +136,13 @@ export default function OnboardingWizard() {
       <div className="container max-w-2xl py-12">
         <div className="mb-8">
           <Link href="/join" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3.5 w-3.5" /> Choose a different role</Link>
-          <div className="mt-6 flex items-center justify-between">
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-widest text-primary">{schema.label} Application</div>
-              <h1 className="mt-1 text-2xl font-bold">{currentStep.title}</h1>
-            </div>
-            <div className="text-sm text-muted-foreground">Step {step + 1} of {schema.steps.length}</div>
+          <div className="mt-6">
+            <div className="text-xs font-semibold uppercase tracking-widest text-primary">{schema.headline || `${schema.label} ${schema.mode === 'instant' ? 'Profile' : 'Application'}`}</div>
+            <h1 className="mt-1 text-2xl font-bold">{currentStep.title}</h1>
+            {schema.subhead && step === 0 && <p className="mt-2 text-sm text-muted-foreground">{schema.subhead}</p>}
+            <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground"><span>Step {step + 1} of {schema.steps.length}</span></div>
           </div>
-          <Progress value={progress} className="mt-4" />
+          <Progress value={progress} className="mt-3" />
         </div>
 
         <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="rounded-2xl border border-border bg-card p-6 md:p-8">
@@ -159,7 +158,9 @@ export default function OnboardingWizard() {
             </Button>
             <Button onClick={next} disabled={loading} size="lg">
               {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…</> : (
-                step === schema.steps.length - 1 ? <>Complete <Sparkles className="ml-2 h-4 w-4" /></> : <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>
+                step === schema.steps.length - 1
+                  ? <>{schema.mode === 'instant' ? 'Create Profile' : 'Submit Application'} <Sparkles className="ml-2 h-4 w-4" /></>
+                  : <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>
               )}
             </Button>
           </div>
@@ -171,6 +172,22 @@ export default function OnboardingWizard() {
 
 function FieldRow({ field, value, onChange }) {
   const id = 'f-' + field.name;
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const form = new FormData();
+    form.append('file', file);
+    form.append('kind', 'insurance');
+    const res = await fetch('/api/upload', { method: 'POST', body: form });
+    const data = await res.json();
+    setUploading(false);
+    if (res.ok) onChange(data.url);
+    else onChange('');
+  }
+
   return (
     <div>
       <Label htmlFor={id} className="mb-1.5 block text-sm">{field.label}{field.required && <span className="ml-1 text-primary">*</span>}</Label>
@@ -183,6 +200,14 @@ function FieldRow({ field, value, onChange }) {
             {field.options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
           </SelectContent>
         </Select>
+      ) : field.type === 'file' ? (
+        <div className="space-y-2">
+          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-border bg-background px-3 py-4 text-sm text-muted-foreground hover:border-primary hover:text-foreground">
+            <input id={id} type="file" accept={field.accept || '.pdf,.png,.jpg,.jpeg'} onChange={handleFile} className="hidden" />
+            {uploading ? 'Uploading…' : value ? `Uploaded: ${value.split('/').pop()}` : 'Click to upload'}
+          </label>
+          {value && <div className="text-xs text-emerald-400">✓ File attached</div>}
+        </div>
       ) : (
         <Input id={id} type={field.type} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={field.placeholder} />
       )}

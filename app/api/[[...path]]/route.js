@@ -3,6 +3,8 @@ import { getCollection } from '@/lib/mongo';
 import { getUserFromRequest } from '@/lib/session';
 import { ensureSeeded } from '@/lib/seed';
 import { j, err, ROLES, ROLE_LABELS } from '@/lib/api-helpers';
+import { sendInvitationEmail, sendScopingCallNotice } from '@/lib/email';
+import { saveUploadedFile, humanSize } from '@/lib/uploads';
 import { v4 as uuid } from 'uuid';
 
 export const runtime = 'nodejs';
@@ -330,7 +332,19 @@ async function handle(request, method) {
           acceptedAt: autoAccept ? new Date() : null
         };
         await partiesCol.insertOne(record);
-        return j({ invite: cleanId(record) });
+
+        // Fire-and-forget email (don't block the response on Resend latency)
+        if (!autoAccept) {
+          sendInvitationEmail({
+            toEmail: inviteEmail,
+            projectName: p.name,
+            invitedByName: user.name || user.email,
+            roleLabel: ROLE_LABELS[body.role] || body.role,
+            message: body.message || ''
+          }).then(r => { if (r?.error) console.warn('Invite email failed:', r.error); });
+        }
+
+        return j({ invite: cleanId(record), emailSent: !autoAccept });
       }
 
       // GET /api/projects/:id/parties
@@ -354,6 +368,28 @@ async function handle(request, method) {
         if (!canManage) return err('Only project owners can remove parties', 403);
         const partiesCol = await getCollection('project_parties');
         await partiesCol.deleteOne({ id: rest[2], projectId: pid });
+        return j({ ok: true });
+      }
+
+      // POST /api/projects/:id/share  (create/rotate share token for board portal)
+      if (pid && rest[1] === 'share' && method === 'POST') {
+        if (!user) return err('Not authenticated', 401);
+        const p = await projects.findOne({ id: pid });
+        if (!p) return err('Project not found', 404);
+        const canShare = isStaff(user) || (p.clientEmail || '').toLowerCase() === user.email;
+        if (!canShare) return err('Only project owners or staff can generate a share link', 403);
+        const token = uuid().replace(/-/g, '').slice(0, 20);
+        await projects.updateOne({ id: pid }, { $set: { shareToken: token, shareCreatedAt: new Date() } });
+        return j({ shareToken: token });
+      }
+
+      // DELETE /api/projects/:id/share  (revoke)
+      if (pid && rest[1] === 'share' && method === 'DELETE') {
+        if (!user) return err('Not authenticated', 401);
+        const p = await projects.findOne({ id: pid });
+        const canShare = isStaff(user) || (p?.clientEmail || '').toLowerCase() === user.email;
+        if (!canShare) return err('Only project owners can revoke share links', 403);
+        await projects.updateOne({ id: pid }, { $unset: { shareToken: '', shareCreatedAt: '' } });
         return j({ ok: true });
       }
     }
@@ -387,7 +423,93 @@ async function handle(request, method) {
       const calls = await getCollection('scoping_calls');
       const rec = { id: uuid(), ...body, createdAt: new Date() };
       await calls.insertOne(rec);
+      // Fire-and-forget admin notification
+      sendScopingCallNotice({
+        contactName: body.fullName,
+        projectAddress: body.address,
+        phone: body.phone,
+        budget: body.budget,
+        notes: body.notes,
+        adminEmail: process.env.ADMIN_EMAIL
+      }).catch(() => {});
       return j({ ok: true, id: rec.id });
+    }
+
+    // ============= FILE UPLOAD =============
+    // POST /api/upload  multipart/form-data { file, projectId?, category?, kind? }
+    if (root === 'upload' && method === 'POST') {
+      const user = await getUserFromRequest(request);
+      const form = await request.formData();
+      const file = form.get('file');
+      if (!file || typeof file === 'string') return err('file required');
+      if (file.size > 25 * 1024 * 1024) return err('File exceeds 25 MB limit');
+      const projectId = form.get('projectId') || 'misc';
+      const category = form.get('category') || 'Documents';
+      const kind = form.get('kind') || 'document'; // 'document' | 'photo' | 'insurance'
+      const caption = form.get('caption') || '';
+
+      const saved = await saveUploadedFile(file, `projects/${projectId}`);
+
+      if (kind === 'photo' && projectId !== 'misc') {
+        const photos = await getCollection('photos');
+        const rec = {
+          id: uuid(),
+          projectId,
+          url: saved.url,
+          caption: caption || saved.filename,
+          uploadedBy: user?.name || 'Anonymous',
+          uploadedAt: new Date()
+        };
+        await photos.insertOne(rec);
+        return j({ url: saved.url, photo: cleanId(rec) });
+      }
+      if (kind === 'document' && projectId !== 'misc') {
+        const docs = await getCollection('documents');
+        const rec = {
+          id: uuid(),
+          projectId,
+          category,
+          name: saved.filename,
+          url: saved.url,
+          size: humanSize(saved.size),
+          type: saved.type,
+          uploadedBy: user?.name || 'Anonymous',
+          uploadedAt: new Date()
+        };
+        await docs.insertOne(rec);
+        return j({ url: saved.url, document: cleanId(rec) });
+      }
+      // insurance / other -> just return URL
+      return j({ url: saved.url, filename: saved.filename, size: humanSize(saved.size) });
+    }
+
+    // ============= SHARE TOKEN / BOARD PORTAL =============
+    // POST /api/projects/:id/share  (creates/rotates portal token)  - covered inside projects block
+    // GET  /api/portal/:token       (public read-only board view)
+    if (root === 'portal' && rest[0] && method === 'GET') {
+      const token = rest[0];
+      const projects = await getCollection('projects');
+      const p = await projects.findOne({ shareToken: token });
+      if (!p) return err('Invalid or expired share link', 404);
+      const [milestones, documents, photos, changeOrders] = await Promise.all([
+        (await getCollection('milestones')).find({ projectId: p.id }).sort({ dueDate: 1 }).toArray(),
+        (await getCollection('documents')).find({ projectId: p.id, category: { $in: ['Permits', 'Contracts', 'Change Orders', 'Drawings'] } }).sort({ uploadedAt: -1 }).toArray(),
+        (await getCollection('photos')).find({ projectId: p.id }).sort({ uploadedAt: -1 }).limit(6).toArray(),
+        (await getCollection('change_orders')).find({ projectId: p.id }).sort({ createdAt: -1 }).toArray()
+      ]);
+      return j({
+        project: {
+          id: p.id, name: p.name, address: p.address, type: p.type, subType: p.subType,
+          phase: p.phase, gmpCeiling: p.gmpCeiling, actualSpend: p.actualSpend,
+          percentComplete: p.percentComplete, pmName: p.pmName, softOpen: p.softOpen,
+          complianceType: p.complianceType || 'LL11/LL97',
+          filingStatus: p.filingStatus || 'In progress'
+        },
+        milestones: milestones.map(cleanId),
+        documents: documents.map(cleanId),
+        photos: photos.map(cleanId),
+        changeOrders: changeOrders.map(cleanId)
+      });
     }
 
     // ============= BID INVITATIONS =============
