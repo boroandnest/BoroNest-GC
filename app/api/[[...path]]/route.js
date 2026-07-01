@@ -66,9 +66,9 @@ async function userHasProjectAccess(user, project) {
 async function listAccessibleProjects(user) {
   const projects = await getCollection('projects');
   if (!user) return [];
-  if (isStaff(user)) return await projects.find({}).sort({ createdAt: -1 }).toArray();
+  if (isStaff(user)) return await projects.find({}).sort({ createdAt: -1 }).limit(200).toArray();
   const parties = await getCollection('project_parties');
-  const invites = await parties.find({ userEmail: user.email, status: 'accepted' }).toArray();
+  const invites = await parties.find({ userEmail: user.email, status: 'accepted' }).limit(200).toArray();
   const memberIds = invites.map(i => i.projectId);
   return await projects.find({
     $or: [
@@ -76,7 +76,7 @@ async function listAccessibleProjects(user) {
       { clientEmail: user.email },
       { id: { $in: memberIds } }
     ]
-  }).sort({ createdAt: -1 }).toArray();
+  }).sort({ createdAt: -1 }).limit(200).toArray();
 }
 
 // ============= HELPER FOR PATH PARSING =============
@@ -194,12 +194,12 @@ async function handle(request, method) {
         if (!access) return err('You do not have access to this project. Ask the project owner to invite you.', 403);
         const partiesCol = await getCollection('project_parties');
         const [milestones, documents, messages, photos, changeOrders, parties] = await Promise.all([
-          (await getCollection('milestones')).find({ projectId: pid }).sort({ dueDate: 1 }).toArray(),
-          (await getCollection('documents')).find({ projectId: pid }).sort({ uploadedAt: -1 }).toArray(),
-          (await getCollection('messages')).find({ projectId: pid }).sort({ createdAt: 1 }).toArray(),
-          (await getCollection('photos')).find({ projectId: pid }).sort({ uploadedAt: -1 }).toArray(),
-          (await getCollection('change_orders')).find({ projectId: pid }).sort({ createdAt: -1 }).toArray(),
-          partiesCol.find({ projectId: pid }).sort({ invitedAt: 1 }).toArray()
+          (await getCollection('milestones')).find({ projectId: pid }).sort({ dueDate: 1 }).limit(100).toArray(),
+          (await getCollection('documents')).find({ projectId: pid }).sort({ uploadedAt: -1 }).limit(200).toArray(),
+          (await getCollection('messages')).find({ projectId: pid }).sort({ createdAt: 1 }).limit(200).toArray(),
+          (await getCollection('photos')).find({ projectId: pid }).sort({ uploadedAt: -1 }).limit(100).toArray(),
+          (await getCollection('change_orders')).find({ projectId: pid }).sort({ createdAt: -1 }).limit(100).toArray(),
+          partiesCol.find({ projectId: pid }).sort({ invitedAt: 1 }).limit(100).toArray()
         ]);
         return j({
           project: cleanId(p),
@@ -492,10 +492,10 @@ async function handle(request, method) {
       const p = await projects.findOne({ shareToken: token });
       if (!p) return err('Invalid or expired share link', 404);
       const [milestones, documents, photos, changeOrders] = await Promise.all([
-        (await getCollection('milestones')).find({ projectId: p.id }).sort({ dueDate: 1 }).toArray(),
-        (await getCollection('documents')).find({ projectId: p.id, category: { $in: ['Permits', 'Contracts', 'Change Orders', 'Drawings'] } }).sort({ uploadedAt: -1 }).toArray(),
+        (await getCollection('milestones')).find({ projectId: p.id }).sort({ dueDate: 1 }).limit(50).toArray(),
+        (await getCollection('documents')).find({ projectId: p.id, category: { $in: ['Permits', 'Contracts', 'Change Orders', 'Drawings'] } }).sort({ uploadedAt: -1 }).limit(50).toArray(),
         (await getCollection('photos')).find({ projectId: p.id }).sort({ uploadedAt: -1 }).limit(6).toArray(),
-        (await getCollection('change_orders')).find({ projectId: p.id }).sort({ createdAt: -1 }).toArray()
+        (await getCollection('change_orders')).find({ projectId: p.id }).sort({ createdAt: -1 }).limit(50).toArray()
       ]);
       return j({
         project: {
