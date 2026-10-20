@@ -33,13 +33,15 @@ export default function RoleDashboard() {
 
   async function refresh() {
     const meRes = await fetch('/api/auth/me');
-    if (!meRes.ok) { router.push('/login'); return; }
+    if (!meRes.ok) { router.replace(`/login?next=/dashboard/${role}`); return; }
     const { user: u } = await meRes.json();
-    if (u.role !== role) { router.push(`/dashboard/${u.role}`); return; }
+    if (u.isStaff) { router.replace('/admin'); return; }
+    if (u.status === 'pending') { router.replace('/pending'); return; }
+    if (u.role !== role) { router.replace(`/dashboard/${u.role}`); return; }
     setUser(u);
     const [pRes, iRes] = await Promise.all([fetch('/api/projects'), fetch('/api/invitations')]);
-    const { projects: pl } = await pRes.json();
-    const { invitations: il } = await iRes.json();
+    const { projects: pl = [] } = pRes.ok ? await pRes.json() : {};
+    const { invitations: il = [] } = iRes.ok ? await iRes.json() : {};
     setProjects(pl);
     setInvitations(il.filter(i => i.status === 'pending'));
     setLoading(false);
@@ -148,8 +150,14 @@ function ProjectCard({ p, showParty = 'pm' }) {
         <PhaseBadge phase={p.phase} />
       </div>
       <div className="mt-4 grid grid-cols-3 gap-3 text-xs">
-        <div><div className="text-muted-foreground">GMP</div><div className="font-semibold">${(p.gmpCeiling / 1000).toFixed(0)}K</div></div>
-        <div><div className="text-muted-foreground">Spent</div><div className="font-semibold">${(p.actualSpend / 1000).toFixed(0)}K</div></div>
+        {p.gmpCeiling !== undefined ? (
+          <>
+            <div><div className="text-muted-foreground">GMP</div><div className="font-semibold">${((p.gmpCeiling || 0) / 1000).toFixed(0)}K</div></div>
+            <div><div className="text-muted-foreground">Spent</div><div className="font-semibold">${((p.actualSpend || 0) / 1000).toFixed(0)}K</div></div>
+          </>
+        ) : (
+          <div className="col-span-2"><div className="text-muted-foreground">Code</div><div className="font-semibold">{p.code || '—'}</div></div>
+        )}
         <div><div className="text-muted-foreground">{showParty === 'pm' ? 'PM' : 'Type'}</div><div className="truncate font-semibold">{showParty === 'pm' ? p.pmName : p.type}</div></div>
       </div>
       <div className="mt-4">
@@ -184,8 +192,8 @@ function ClientView({ projects, user }) {
               </div>
               <div className="text-right">
                 <div className="text-xs uppercase tracking-widest text-muted-foreground">GMP Ceiling</div>
-                <div className="text-3xl font-bold text-primary">${primary.gmpCeiling.toLocaleString()}</div>
-                <div className="mt-1 text-xs text-muted-foreground">Actual: ${primary.actualSpend.toLocaleString()} ({Math.round(primary.actualSpend/primary.gmpCeiling*100)}%)</div>
+                <div className="text-3xl font-bold text-primary">${(primary.gmpCeiling || 0).toLocaleString()}</div>
+                <div className="mt-1 text-xs text-muted-foreground">Actual: ${(primary.actualSpend || 0).toLocaleString()} ({primary.gmpCeiling ? Math.round((primary.actualSpend || 0) / primary.gmpCeiling * 100) : 0}%)</div>
               </div>
             </div>
             <div className="mt-5">

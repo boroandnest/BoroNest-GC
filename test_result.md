@@ -105,8 +105,11 @@ user_problem_statement: |
   Boro & Nest Collective — Full-stack multi-role project management SaaS for NYC build-outs & LL11/LL97 compliance.
   Five roles (Client, Management Co, Building Rep, Expediter, Subcontractor).
   Includes Nest AI chatbot (Claude Haiku 4.5 via Emergent Universal LLM key).
-  Deal-room style project rooms with invitations. B&N staff (emails ending @boronest.co) get auto-access.
-  Royal blue + white + black + chrome design system.
+  Deal-room style project rooms with invitations. B&N staff = role "bn_staff" (admin seeded from ADMIN_EMAIL/ADMIN_PASSWORD env;
+  email domain NO LONGER grants staff).
+  Royal blue + white + black + chrome design system (Phase 1 spec moves to forest/cream/sand — see docs/PHASE1_BUILD.md §7).
+  PHASE 1 (branch feat/phase-1-workspace): secure auth (staff password, magic link for everyone else), role-gated pricing
+  enforced server-side, scope of work, message audiences, project_events log. READ docs/EMERGENT_HANDOFF.md BEFORE CHANGING AUTH.
 
 backend:
   - task: "Auth (email signup/login/session cookie/me/logout)"
@@ -263,11 +266,13 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 3
+  test_sequence: 4
   run_ui: false
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Phase 1 security + role-gated pricing (tests/api_access_test.mjs)"
+
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -435,3 +440,16 @@ agent_communication:
       - All iteration 1 features still working (regression check passed)
       
       No critical issues found. All iteration 2 backend features functioning as expected.
+
+  - agent: "main"
+    message: |
+      PHASE 1 SECURITY HARDENING + WORKSPACE (branch feat/phase-1-workspace). Supersedes the auth notes above.
+      - Old email-only login (anyone could sign in as anyone, incl. admin) is REMOVED. Do not reintroduce it.
+      - Staff sign in with password (POST /api/auth/login {email,password}); admin is created from ADMIN_EMAIL + ADMIN_PASSWORD env.
+      - Everyone else: POST /api/auth/login {email} or /api/auth/signup -> one-time email link -> /auth/confirm page -> POST /api/auth/callback {token} sets bn_session cookie.
+      - Expediter/subcontractor sign-ups are status "pending" until staff approve in /admin (POST /api/admin/users/:id/status).
+      - Pricing projection is server-side in lib/visibility.js (spec §4). Subs see only their scopeTrades; building reps/expediters see no $.
+      - Uploads moved out of /public; served by GET /api/files/:id with access checks.
+      - backend_test.py / backend_test_iteration2.py deleted (they tested the insecure login).
+      - New test: tests/api_access_test.mjs (19/19 passing). Needs server with AUTH_DEV_LINKS=true. Never run against production.
+      - Remaining Phase 1 tasks are listed in docs/EMERGENT_HANDOFF.md.

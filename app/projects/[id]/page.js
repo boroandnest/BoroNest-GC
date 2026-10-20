@@ -26,7 +26,8 @@ export default function ProjectHub() {
 
   async function load() {
     const res = await fetch(`/api/projects/${params.id}`);
-    if (!res.ok) { toast.error('Project not found'); router.push('/dashboard'); return; }
+    if (res.status === 401) { router.replace(`/login?next=/projects/${params.id}`); return; }
+    if (!res.ok) { const d = await res.json().catch(() => ({})); toast.error(d.error || 'Project not found'); router.push('/dashboard'); return; }
     const d = await res.json();
     setData(d);
     setLoading(false);
@@ -37,7 +38,16 @@ export default function ProjectHub() {
   if (loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!data) return null;
 
-  const { project: p, milestones, documents, messages, photos, changeOrders, parties = [], isStaff, isOwner } = data;
+  const { project: p, milestones, documents, messages, photos, changeOrders, parties = [], isStaff, isOwner, canSeePricing, viewerRole } = data;
+
+  async function setPhase(phase) {
+    const res = await fetch(`/api/projects/${p.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phase }) });
+    if (res.ok) { toast.success(`Phase set to ${phase}`); load(); } else toast.error('Could not update phase');
+  }
+  async function verifyMilestone(mid) {
+    const res = await fetch(`/api/projects/${p.id}/milestones/${mid}/complete`, { method: 'POST' });
+    if (res.ok) { toast.success('Milestone verified'); load(); } else toast.error('Could not verify milestone');
+  }
 
   async function createShare() {
     const res = await fetch(`/api/projects/${p.id}/share`, { method: 'POST' });
@@ -68,15 +78,25 @@ export default function ProjectHub() {
               <div className="flex items-center gap-2">
                 <PhaseBadge phase={p.phase} />
                 <span className="text-xs text-muted-foreground">{p.type} · {p.subType}</span>
+                {p.code && <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{p.code}</span>}
                 {p.complianceType && <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">{p.complianceType}</span>}
               </div>
               <h1 className="mt-2 text-3xl font-bold tracking-tight">{p.name}</h1>
               <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-3.5 w-3.5" /> {p.address}</div>
             </div>
             <div className="text-right">
-              <div className="text-xs uppercase tracking-widest text-muted-foreground">GMP Ceiling</div>
-              <div className="text-3xl font-bold text-primary">${p.gmpCeiling.toLocaleString()}</div>
-              <div className="mt-1 text-xs text-muted-foreground">Spent: ${p.actualSpend.toLocaleString()}</div>
+              {canSeePricing && (
+                <>
+                  <div className="text-xs uppercase tracking-widest text-muted-foreground">GMP Ceiling</div>
+                  <div className="text-3xl font-bold text-primary">${(p.gmpCeiling || 0).toLocaleString()}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Spent: ${(p.actualSpend || 0).toLocaleString()}{p.contingency ? ` · Contingency: $${p.contingency.toLocaleString()}` : ''}</div>
+                </>
+              )}
+              {isStaff && (
+                <select value={p.phase} onChange={e => setPhase(e.target.value)} className="mt-3 rounded-md border border-border bg-background px-2 py-1 text-xs" aria-label="Project phase">
+                  {PHASES.map(ph => <option key={ph}>{ph}</option>)}
+                </select>
+              )}
               {(isOwner || isStaff) && (
                 <div className="mt-3 flex flex-wrap justify-end gap-2">
                   {p.shareToken ? (
@@ -114,7 +134,9 @@ export default function ProjectHub() {
           <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
             <Info icon={Users} label="Assigned PM" value={p.pmName} />
             <Info icon={Calendar} label="Soft Open" value={p.softOpen || 'TBD'} />
-            <Info icon={DollarSign} label="Remaining" value={`$${((p.gmpCeiling - p.actualSpend)/1000).toFixed(0)}K`} />
+            {canSeePricing
+              ? <Info icon={DollarSign} label="Remaining" value={`$${(((p.gmpCeiling || 0) - (p.actualSpend || 0)) / 1000).toFixed(0)}K`} />
+              : <Info icon={FileText} label="Your role" value={viewerRole} />}
             <Info icon={Wrench} label="Change Orders" value={changeOrders.length} />
           </div>
         </motion.div>
@@ -123,7 +145,8 @@ export default function ProjectHub() {
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="milestones">Milestones</TabsTrigger>
-            <TabsTrigger value="budget">Budget</TabsTrigger>
+            <TabsTrigger value="scope">Scope</TabsTrigger>
+            {canSeePricing && <TabsTrigger value="budget">Budget</TabsTrigger>}
             <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="photos">Photos</TabsTrigger>
             <TabsTrigger value="messages">Messages</TabsTrigger>
@@ -138,7 +161,7 @@ export default function ProjectHub() {
                 <CardContent className="space-y-3">
                   {messages.slice(-4).reverse().map(m => (
                     <div key={m.id} className="flex gap-3">
-                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-bold text-primary">{m.fromName[0]}</div>
+                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-bold text-primary">{(m.fromName || '?')[0]}</div>
                       <div>
                         <div className="text-sm"><span className="font-medium">{m.fromName}</span> <span className="text-muted-foreground">· {new Date(m.createdAt).toLocaleDateString()}</span></div>
                         <div className="text-sm text-muted-foreground">{m.body}</div>
@@ -172,9 +195,14 @@ export default function ProjectHub() {
                         <div className="text-xs text-muted-foreground">{m.phase} · Due {new Date(m.dueDate).toLocaleDateString()}</div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold">${m.amount.toLocaleString()}</div>
-                      <div className="text-xs text-muted-foreground">{m.paymentStatus.replace('_', ' ')}</div>
+                    <div className="flex items-center gap-3 text-right">
+                      {m.amount !== undefined && (
+                        <div>
+                          <div className="text-sm font-semibold">${m.amount.toLocaleString()}</div>
+                          <div className="text-xs text-muted-foreground">{(m.paymentStatus || '').replace('_', ' ')}</div>
+                        </div>
+                      )}
+                      {isStaff && m.status !== 'complete' && <Button size="sm" variant="outline" onClick={() => verifyMilestone(m.id)}>Verify</Button>}
                     </div>
                   </div>
                 ))}
@@ -182,9 +210,15 @@ export default function ProjectHub() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="budget" className="mt-6">
-            <BudgetView project={p} />
+          <TabsContent value="scope" className="mt-6">
+            <ScopeView projectId={p.id} isStaff={isStaff} />
           </TabsContent>
+
+          {canSeePricing && (
+            <TabsContent value="budget" className="mt-6">
+              <BudgetView project={p} projectId={p.id} />
+            </TabsContent>
+          )}
 
           <TabsContent value="documents" className="mt-6">
             <DocumentsView projectId={p.id} documents={documents} onRefresh={load} />
@@ -195,15 +229,15 @@ export default function ProjectHub() {
           </TabsContent>
 
           <TabsContent value="messages" className="mt-6">
-            <MessagesView projectId={p.id} messages={messages} onRefresh={load} />
+            <MessagesView projectId={p.id} messages={messages} onRefresh={load} viewerRole={viewerRole} />
           </TabsContent>
 
           <TabsContent value="change-orders" className="mt-6">
-            <ChangeOrdersView projectId={p.id} changeOrders={changeOrders} onRefresh={load} />
+            <ChangeOrdersView projectId={p.id} changeOrders={changeOrders} onRefresh={load} canPropose={canSeePricing} />
           </TabsContent>
 
           <TabsContent value="team" className="mt-6">
-            <TeamView projectId={p.id} parties={parties} clientEmail={p.clientEmail} pmName={p.pmName} pmEmail={p.pmEmail} canInvite={isStaff || isOwner} onRefresh={load} />
+            <TeamView projectId={p.id} parties={parties} clientEmail={p.clientEmail} pmName={p.pmName} pmEmail={p.pmEmail} canInvite={isStaff || isOwner} isStaff={isStaff} onRefresh={load} />
           </TabsContent>
         </Tabs>
       </div>
@@ -227,47 +261,144 @@ function PhaseBadge({ phase }) {
   return <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">{phase}</span>;
 }
 
-function BudgetView({ project: p }) {
-  const remaining = p.gmpCeiling - p.actualSpend;
-  const pct = Math.round(p.actualSpend / p.gmpCeiling * 100);
-  const lines = [
-    { cat: 'Demo & structural', budget: p.gmpCeiling * 0.12, actual: p.actualSpend * 0.15 },
-    { cat: 'Mechanical / HVAC', budget: p.gmpCeiling * 0.18, actual: p.actualSpend * 0.20 },
-    { cat: 'Electrical', budget: p.gmpCeiling * 0.14, actual: p.actualSpend * 0.13 },
-    { cat: 'Plumbing', budget: p.gmpCeiling * 0.09, actual: p.actualSpend * 0.08 },
-    { cat: 'Millwork & finishes', budget: p.gmpCeiling * 0.28, actual: p.actualSpend * 0.20 },
-    { cat: 'FF&E', budget: p.gmpCeiling * 0.10, actual: p.actualSpend * 0.14 },
-    { cat: 'Contingency', budget: p.gmpCeiling * 0.09, actual: p.actualSpend * 0.10 }
-  ];
+function BudgetView({ project: p, projectId }) {
+  const [lines, setLines] = useState(null);
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/scope`).then(r => r.ok ? r.json() : { lines: [] }).then(d => setLines(d.lines || []));
+  }, [projectId]);
+  const gmp = p.gmpCeiling || 0;
+  const spent = p.actualSpend || 0;
+  const remaining = gmp - spent;
+  const pct = gmp ? Math.round(spent / gmp * 100) : 0;
+  const byTrade = Object.values((lines || []).reduce((acc, l) => {
+    const k = l.trade || 'other';
+    acc[k] = acc[k] || { trade: k, total: 0, count: 0 };
+    acc[k].total += l.lineTotal || 0;
+    acc[k].count += 1;
+    return acc;
+  }, {}));
+  const scopeTotal = byTrade.reduce((a, t) => a + t.total, 0);
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card><CardContent className="p-5"><div className="text-xs uppercase tracking-widest text-muted-foreground">GMP Ceiling</div><div className="mt-2 text-2xl font-bold text-primary">${p.gmpCeiling.toLocaleString()}</div></CardContent></Card>
-        <Card><CardContent className="p-5"><div className="text-xs uppercase tracking-widest text-muted-foreground">Actual Spend</div><div className="mt-2 text-2xl font-bold">${p.actualSpend.toLocaleString()}</div><div className="mt-1 text-xs text-muted-foreground">{pct}% of ceiling</div></CardContent></Card>
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card><CardContent className="p-5"><div className="text-xs uppercase tracking-widest text-muted-foreground">GMP Ceiling</div><div className="mt-2 text-2xl font-bold text-primary">${gmp.toLocaleString()}</div></CardContent></Card>
+        <Card><CardContent className="p-5"><div className="text-xs uppercase tracking-widest text-muted-foreground">Actual Spend</div><div className="mt-2 text-2xl font-bold">${spent.toLocaleString()}</div><div className="mt-1 text-xs text-muted-foreground">{pct}% of ceiling</div></CardContent></Card>
         <Card><CardContent className="p-5"><div className="text-xs uppercase tracking-widest text-muted-foreground">Remaining Under Ceiling</div><div className="mt-2 text-2xl font-bold text-emerald-400">${remaining.toLocaleString()}</div></CardContent></Card>
+        <Card><CardContent className="p-5"><div className="text-xs uppercase tracking-widest text-muted-foreground">Contingency</div><div className="mt-2 text-2xl font-bold">${(p.contingency || 0).toLocaleString()}</div></CardContent></Card>
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Line-Item Breakdown</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Scope Totals by Trade</CardTitle><CardDescription>From the scope of work. Add lines on the Scope tab.</CardDescription></CardHeader>
         <CardContent>
-          <table className="w-full text-sm">
-            <thead className="text-xs text-muted-foreground">
-              <tr className="border-b border-border"><th className="pb-2 text-left">Category</th><th className="pb-2 text-right">Budgeted</th><th className="pb-2 text-right">Actual</th><th className="pb-2 text-right">Variance</th></tr>
-            </thead>
-            <tbody>
-              {lines.map(l => {
-                const v = l.budget - l.actual;
-                return (
-                  <tr key={l.cat} className="border-b border-border/40 last:border-0">
-                    <td className="py-3 font-medium">{l.cat}</td>
-                    <td className="py-3 text-right">${Math.round(l.budget).toLocaleString()}</td>
-                    <td className="py-3 text-right">${Math.round(l.actual).toLocaleString()}</td>
-                    <td className={`py-3 text-right ${v >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{v >= 0 ? '+' : ''}${Math.round(v).toLocaleString()}</td>
+          {lines === null ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : byTrade.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No scope lines priced yet.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="text-xs text-muted-foreground">
+                <tr className="border-b border-border"><th className="pb-2 text-left">Trade</th><th className="pb-2 text-right">Lines</th><th className="pb-2 text-right">Total</th><th className="pb-2 text-right">% of GMP</th></tr>
+              </thead>
+              <tbody>
+                {byTrade.map(t => (
+                  <tr key={t.trade} className="border-b border-border/40 last:border-0">
+                    <td className="py-3 font-medium capitalize">{t.trade}</td>
+                    <td className="py-3 text-right">{t.count}</td>
+                    <td className="py-3 text-right font-mono">${Math.round(t.total).toLocaleString()}</td>
+                    <td className="py-3 text-right">{gmp ? Math.round(t.total / gmp * 100) : 0}%</td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                ))}
+                <tr><td className="pt-3 font-semibold">Scope total</td><td /><td className="pt-3 text-right font-mono font-semibold">${Math.round(scopeTotal).toLocaleString()}</td><td className="pt-3 text-right">{gmp ? Math.round(scopeTotal / gmp * 100) : 0}%</td></tr>
+              </tbody>
+            </table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ScopeView({ projectId, isStaff }) {
+  const [state, setState] = useState(null);
+  const [form, setForm] = useState({ trade: '', title: '', unit: 'ea', quantity: '', unitCost: '' });
+  const [saving, setSaving] = useState(false);
+
+  async function load() {
+    const res = await fetch(`/api/projects/${projectId}/scope`);
+    setState(res.ok ? await res.json() : { lines: [], canSeePricing: false });
+  }
+  useEffect(() => { load(); }, [projectId]);
+
+  async function addLine(e) {
+    e.preventDefault();
+    setSaving(true);
+    const res = await fetch(`/api/projects/${projectId}/scope`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    setSaving(false);
+    if (res.ok) { toast.success('Scope line added'); setForm({ trade: form.trade, title: '', unit: form.unit, quantity: '', unitCost: '' }); load(); }
+    else { const d = await res.json().catch(() => ({})); toast.error(d.error || 'Could not add line'); }
+  }
+  async function removeLine(id) {
+    if (!confirm('Delete this scope line?')) return;
+    const res = await fetch(`/api/projects/${projectId}/scope/${id}`, { method: 'DELETE' });
+    if (res.ok) load();
+  }
+
+  if (!state) return <Loader2 className="h-5 w-5 animate-spin text-primary" />;
+  const { lines } = state;
+  // Columns follow what the server sent: if no line carries a price, the viewer gets no $ columns.
+  const showMoney = lines.some(l => l.unitCost !== undefined || l.lineTotal !== undefined);
+
+  return (
+    <div className="space-y-6">
+      {isStaff && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Add scope line</CardTitle><CardDescription>Line total is quantity × unit cost.</CardDescription></CardHeader>
+          <CardContent>
+            <form onSubmit={addLine} className="grid gap-3 md:grid-cols-6">
+              <Input required placeholder="Trade (e.g. electrical)" value={form.trade} onChange={e => setForm({ ...form, trade: e.target.value })} className="md:col-span-1" />
+              <Input required placeholder="Title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="md:col-span-2" />
+              <Input placeholder="Unit" value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} />
+              <Input type="number" step="any" placeholder="Qty" value={form.quantity} onChange={e => setForm({ ...form, quantity: e.target.value })} />
+              <Input type="number" step="any" placeholder="Unit cost $" value={form.unitCost} onChange={e => setForm({ ...form, unitCost: e.target.value })} />
+              <Button type="submit" disabled={saving} className="md:col-span-6 md:w-fit">{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />} Add line</Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Scope of Work</CardTitle><CardDescription>{state.viewerRole === 'subcontractor' ? 'Showing the lines for your trade.' : `${lines.length} line${lines.length === 1 ? '' : 's'}`}</CardDescription></CardHeader>
+        <CardContent>
+          {lines.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No scope lines yet.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-muted-foreground">
+                  <tr className="border-b border-border">
+                    <th className="pb-2 text-left">#</th><th className="pb-2 text-left">Trade</th><th className="pb-2 text-left">Item</th>
+                    <th className="pb-2 text-right">Qty</th><th className="pb-2 text-left pl-2">Unit</th>
+                    {showMoney && <><th className="pb-2 text-right">Unit cost</th><th className="pb-2 text-right">Line total</th></>}
+                    <th className="pb-2 text-left pl-3">Status</th>{isStaff && <th />}
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map(l => (
+                    <tr key={l.id} className="border-b border-border/40 last:border-0">
+                      <td className="py-3 font-mono text-xs text-muted-foreground">{l.seq}</td>
+                      <td className="py-3 capitalize">{l.trade}</td>
+                      <td className="py-3"><div className="font-medium">{l.title}</div>{(l.specifiedMfr || l.specifiedProduct) && <div className="text-xs text-muted-foreground">{[l.specifiedMfr, l.specifiedProduct].filter(Boolean).join(' — ')}</div>}</td>
+                      <td className="py-3 text-right">{l.quantity ?? '—'}</td>
+                      <td className="py-3 pl-2 text-muted-foreground">{l.unit}</td>
+                      {showMoney && <>
+                        <td className="py-3 text-right font-mono">{l.unitCost != null ? `$${l.unitCost.toLocaleString()}` : '—'}</td>
+                        <td className="py-3 text-right font-mono">{l.lineTotal != null ? `$${l.lineTotal.toLocaleString()}` : '—'}</td>
+                      </>}
+                      <td className="py-3 pl-3 text-xs uppercase tracking-wider text-muted-foreground">{(l.status || '').replace('_', ' ')}</td>
+                      {isStaff && <td className="py-3 text-right"><button onClick={() => removeLine(l.id)} className="rounded-md p-1.5 text-muted-foreground hover:text-destructive" aria-label="Delete line"><Trash2 className="h-3.5 w-3.5" /></button></td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -340,8 +471,15 @@ function DocumentsView({ projectId, documents, onRefresh }) {
   );
 }
 
-function MessagesView({ projectId, messages, onRefresh }) {
+const AUDIENCES = {
+  all: { label: 'Everyone on the project', roles: [] },
+  owner: { label: 'Client + Boro & Nest only', roles: ['client', 'management', 'bn_staff'] },
+  staff: { label: 'Boro & Nest only', roles: ['bn_staff'] }
+};
+
+function MessagesView({ projectId, messages, onRefresh, viewerRole }) {
   const [body, setBody] = useState('');
+  const [audience, setAudience] = useState('all');
   const [sending, setSending] = useState(false);
 
   async function send() {
@@ -350,9 +488,9 @@ function MessagesView({ projectId, messages, onRefresh }) {
     const res = await fetch(`/api/projects/${projectId}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body })
+      body: JSON.stringify({ body, audience: AUDIENCES[audience].roles })
     });
-    if (res.ok) { setBody(''); onRefresh(); toast.success('Sent'); }
+    if (res.ok) { setBody(''); setAudience('all'); onRefresh(); toast.success('Sent'); }
     else toast.error('Failed to send');
     setSending(false);
   }
@@ -364,15 +502,18 @@ function MessagesView({ projectId, messages, onRefresh }) {
         <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
           {messages.map(m => (
             <div key={m.id} className="flex gap-3">
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-bold text-primary">{m.fromName[0]}</div>
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-bold text-primary">{(m.fromName || '?')[0]}</div>
               <div className="flex-1">
-                <div className="text-sm"><span className="font-medium">{m.fromName}</span> <span className="text-xs uppercase text-muted-foreground">· {m.fromRole}</span> <span className="text-xs text-muted-foreground">· {new Date(m.createdAt).toLocaleString()}</span></div>
+                <div className="text-sm"><span className="font-medium">{m.fromName}</span> <span className="text-xs uppercase text-muted-foreground">· {m.fromRole}</span> <span className="text-xs text-muted-foreground">· {new Date(m.createdAt).toLocaleString()}</span>{m.audience?.length > 0 && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">Restricted</span>}</div>
                 <div className="mt-1 rounded-lg bg-background px-3 py-2 text-sm">{m.body}</div>
               </div>
             </div>
           ))}
         </div>
         <div className="mt-4 border-t border-border pt-4">
+          <select value={audience} onChange={e => setAudience(e.target.value)} className="mb-2 rounded-md border border-border bg-background px-2 py-1 text-xs" aria-label="Who can read this message">
+            {Object.entries(AUDIENCES).map(([k, a]) => <option key={k} value={k}>{a.label}</option>)}
+          </select>
           <div className="flex gap-2">
             <Textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Type a message…" rows={2} className="flex-1" />
             <Button onClick={send} disabled={sending || !body.trim()}>{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button>
@@ -383,17 +524,18 @@ function MessagesView({ projectId, messages, onRefresh }) {
   );
 }
 
-function ChangeOrdersView({ projectId, changeOrders, onRefresh }) {
+function ChangeOrdersView({ projectId, changeOrders, onRefresh, canPropose }) {
   const [description, setDescription] = useState('');
   const [costImpact, setCostImpact] = useState('');
 
   async function submit() {
     if (!description || !costImpact) return;
-    await fetch(`/api/projects/${projectId}/change-orders`, {
+    const res = await fetch(`/api/projects/${projectId}/change-orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ description, costImpact: Number(costImpact) })
     });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); toast.error(d.error || 'Could not propose change order'); return; }
     setDescription(''); setCostImpact('');
     toast.success('Change order proposed');
     onRefresh();
@@ -401,7 +543,7 @@ function ChangeOrdersView({ projectId, changeOrders, onRefresh }) {
 
   return (
     <div className="space-y-6">
-      <Card>
+      {canPropose && <Card>
         <CardHeader><CardTitle className="text-base">Propose Change Order</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <Textarea placeholder="Describe the change…" value={description} onChange={e => setDescription(e.target.value)} rows={2} />
@@ -410,7 +552,7 @@ function ChangeOrdersView({ projectId, changeOrders, onRefresh }) {
             <Button onClick={submit} disabled={!description || !costImpact}>Propose</Button>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
       <Card>
         <CardHeader><CardTitle className="text-base">Change Order Log</CardTitle></CardHeader>
         <CardContent className="space-y-2">
@@ -421,7 +563,7 @@ function ChangeOrdersView({ projectId, changeOrders, onRefresh }) {
                 <div className="text-xs text-muted-foreground">Requested by {co.requestedBy} · {new Date(co.createdAt).toLocaleDateString()}</div>
               </div>
               <div className="text-right">
-                <div className={`text-sm font-semibold ${co.costImpact >= 0 ? 'text-primary' : 'text-emerald-400'}`}>{co.costImpact >= 0 ? '+' : ''}${co.costImpact.toLocaleString()}</div>
+                {co.costImpact !== undefined && <div className={`text-sm font-semibold ${co.costImpact >= 0 ? 'text-primary' : 'text-emerald-400'}`}>{co.costImpact >= 0 ? '+' : ''}${co.costImpact.toLocaleString()}</div>}
                 <div className={`text-xs rounded-full px-2 py-0.5 ${co.status === 'Approved' ? 'bg-emerald-500/15 text-emerald-400' : co.status === 'Rejected' ? 'bg-red-500/15 text-red-400' : 'bg-yellow-500/15 text-yellow-400'} inline-block`}>{co.status}</div>
               </div>
             </div>
@@ -432,9 +574,10 @@ function ChangeOrdersView({ projectId, changeOrders, onRefresh }) {
   );
 }
 
-function TeamView({ projectId, parties, clientEmail, pmName, pmEmail, canInvite, onRefresh }) {
+function TeamView({ projectId, parties, clientEmail, pmName, pmEmail, canInvite, isStaff, onRefresh }) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('subcontractor');
+  const [scopeTrades, setScopeTrades] = useState('');
   const [message, setMessage] = useState('');
   const [inviting, setInviting] = useState(false);
 
@@ -445,12 +588,12 @@ function TeamView({ projectId, parties, clientEmail, pmName, pmEmail, canInvite,
     const res = await fetch(`/api/projects/${projectId}/invite`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, role, message })
+      body: JSON.stringify({ email, role, message, scopeTrades: role === 'subcontractor' ? scopeTrades : '' })
     });
     const data = await res.json();
     if (res.ok) {
       toast.success(`Invitation sent to ${email}`);
-      setEmail(''); setMessage('');
+      setEmail(''); setMessage(''); setScopeTrades('');
       onRefresh();
     } else {
       toast.error(data.error || 'Failed');
@@ -465,7 +608,7 @@ function TeamView({ projectId, parties, clientEmail, pmName, pmEmail, canInvite,
   }
 
   const roles = [
-    { key: 'client', label: 'Client' },
+    ...(isStaff ? [{ key: 'client', label: 'Client' }] : []),
     { key: 'management', label: 'Management Company' },
     { key: 'building-rep', label: 'Building Rep' },
     { key: 'expediter', label: 'Expediter' },
@@ -504,6 +647,13 @@ function TeamView({ projectId, parties, clientEmail, pmName, pmEmail, canInvite,
                   </select>
                 </div>
               </div>
+              {role === 'subcontractor' && (
+                <div>
+                  <label className="mb-1.5 block text-xs uppercase tracking-widest text-muted-foreground">Trades they can see (comma-separated)</label>
+                  <Input placeholder="electrical, lighting" value={scopeTrades} onChange={e => setScopeTrades(e.target.value)} />
+                  <p className="mt-1 text-xs text-muted-foreground">Subcontractors only see scope lines and pricing for these trades.</p>
+                </div>
+              )}
               <div>
                 <label className="mb-1.5 block text-xs uppercase tracking-widest text-muted-foreground">Optional message</label>
                 <Textarea rows={2} placeholder="We'd like you to review the plans and coordinate the electrical rough-in schedule." value={message} onChange={e => setMessage(e.target.value)} />
@@ -561,7 +711,7 @@ function TeamView({ projectId, parties, clientEmail, pmName, pmEmail, canInvite,
                 <div className="grid h-9 w-9 place-items-center rounded-full bg-muted text-sm font-bold">{p.userEmail[0]?.toUpperCase()}</div>
                 <div>
                   <div className="text-sm font-medium">{p.userEmail}</div>
-                  <div className="text-xs text-muted-foreground">{p.role} · Invited by {p.invitedByName} · {new Date(p.invitedAt).toLocaleDateString()}</div>
+                  <div className="text-xs text-muted-foreground">{p.role}{p.scopeTrades?.length ? ` (${p.scopeTrades.join(', ')})` : ''} · Invited by {p.invitedByName} · {new Date(p.invitedAt).toLocaleDateString()}</div>
                   {p.message && <div className="mt-1 text-xs italic text-muted-foreground">"{p.message}"</div>}
                 </div>
               </div>
