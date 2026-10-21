@@ -153,4 +153,66 @@ await test('T5 worksheet: rollup equals lib/money, stale flag at 130 days, tarif
   assert.equal(w.rollup.proposedCeiling, toMoneyString(total.plus('32000')));
 });
 
+// ---------------------------------------------------------------- T6
+await test('T6 a blocked line cannot start: rejected by the API (409) AND by MongoDB on a raw write', async () => {
+  const lines = (await A.call(`/api/projects/${ctx.project.id}/scope`)).json.lines;
+  ctx.elecLine = lines.find(l => l.templateTaskKey === 'rough_elec');
+  ctx.plumbLine = lines.find(l => l.templateTaskKey === 'rough_plumb');
+  const r = await A.call(`/api/projects/${ctx.project.id}/changes`, { method: 'POST', body: {
+    title: 'Relocate panel', reason: 'unforeseen_condition', againstContingency: true, scheduleImpactDays: 2,
+    lines: [{ scopeLineId: ctx.elecLine.id, costDelta: '6200.00' }]
+  } });
+  assert.equal(r.status, 201, r.text);
+  ctx.co1 = r.json.changeOrder;
+  assert.equal(ctx.co1.status, 'pending_signature');
+  assert.equal(ctx.co1.costDelta, '6200.00');
+
+  const blocked = await A.call(`/api/projects/${ctx.project.id}/scope/${ctx.elecLine.id}`, { method: 'PATCH', body: { status: 'in_progress' } });
+  assert.equal(blocked.status, 409, blocked.text);
+  assert.equal(blocked.json.code, 'blocked_by_change_order');
+
+  const { client, db: d } = await db();
+  try {
+    await assert.rejects(d.collection('scope_lines').updateOne({ id: ctx.elecLine.id }, { $set: { status: 'in_progress' } }), (e) => e.code === 121);
+    await assert.rejects(d.collection('scope_lines').updateOne({ id: ctx.elecLine.id }, { $set: { status: 'complete' } }), (e) => e.code === 121);
+    assert.equal((await d.collection('scope_blocks').countDocuments({ coId: ctx.co1.id, clearedAt: null })), 1);
+  } finally { await client.close(); }
+});
+
+await test('T6 signing the CO clears the block and the update succeeds', async () => {
+  const s = await ctx.client.call(`/api/projects/${ctx.project.id}/changes/${ctx.co1.id}/sign`, { method: 'POST', body: { signedName: 'Pat Client' } });
+  assert.equal(s.status, 200, s.text);
+  const ok = await A.call(`/api/projects/${ctx.project.id}/scope/${ctx.elecLine.id}`, { method: 'PATCH', body: { status: 'in_progress' } });
+  assert.equal(ok.status, 200, ok.text);
+  const again = await ctx.client.call(`/api/projects/${ctx.project.id}/changes/${ctx.co1.id}/sign`, { method: 'POST', body: { signedName: 'Pat Client' } });
+  assert.equal(again.status, 409, 'cannot sign twice');
+});
+
+await test('T6 voiding the CO also clears the block', async () => {
+  const r = await A.call(`/api/projects/${ctx.project.id}/changes`, { method: 'POST', body: { title: 'Extra cleanout', reason: 'owner_request', lines: [{ scopeLineId: ctx.plumbLine.id, costDelta: '900' }] } });
+  assert.equal(r.status, 201);
+  assert.equal((await A.call(`/api/projects/${ctx.project.id}/scope/${ctx.plumbLine.id}`, { method: 'PATCH', body: { status: 'in_progress' } })).status, 409);
+  assert.equal((await A.call(`/api/projects/${ctx.project.id}/changes/${r.json.changeOrder.id}/void`, { method: 'POST', body: { reason: 'client withdrew' } })).status, 200);
+  assert.equal((await A.call(`/api/projects/${ctx.project.id}/scope/${ctx.plumbLine.id}`, { method: 'PATCH', body: { status: 'in_progress' } })).status, 200);
+});
+
+await test('T6 blocking a line already in progress pauses it atomically', async () => {
+  const r = await A.call(`/api/projects/${ctx.project.id}/changes`, { method: 'POST', body: { title: 'Add GFCI', reason: 'code_requirement', lines: [{ scopeLineId: ctx.plumbLine.id, costDelta: '300' }] } });
+  assert.equal(r.status, 201, r.text);
+  const line = (await A.call(`/api/projects/${ctx.project.id}/scope`)).json.lines.find(l => l.id === ctx.plumbLine.id);
+  assert.equal(line.status, 'paused');
+  ctx.co3 = r.json.changeOrder;
+});
+
+await test('T6 project_financials is staff-only and exposes absorbed losses', async () => {
+  for (const m of [ctx.client, ctx.sub, ctx.rep]) {
+    const r = await m.call(`/api/projects/${ctx.project.id}/financials`);
+    assert.equal(r.status, 403);
+    assert.ok(!r.text.includes('absorbedLosses'));
+  }
+  const f = (await A.call(`/api/projects/${ctx.project.id}/financials`)).json.financials;
+  assert.equal(f.contingencyUsed, '6200.00');
+  assert.equal(f.absorbedLosses, '0.00');
+});
+
 finish();

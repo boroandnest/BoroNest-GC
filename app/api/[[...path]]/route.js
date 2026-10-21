@@ -1,4 +1,6 @@
+import { NextResponse } from 'next/server';
 import { getCollection } from '@/lib/mongo';
+import { HttpError } from '@/lib/api';
 import {
   getUserFromRequest, createSession, destroySession, clearSessionCookie,
   createMagicLink, consumeMagicLink, safeNext, hashPassword, verifyPassword,
@@ -15,6 +17,7 @@ import { toMoney, round2 } from '@/lib/money';
 import { toDecimal128, toDecimal128Exact } from '@/lib/money-storage';
 import { priceLine } from '@/lib/templates/instantiate';
 import { scopeTotals } from '@/lib/scope/totals';
+import { setScopeLineStatus } from '@/lib/co/core';
 import {
   canSeePricing, projectProject, projectScope, projectMilestones,
   projectChangeOrders, projectParties, canReadMessage
@@ -426,7 +429,11 @@ async function handle(request, method) {
         if (method === 'PATCH' && rest[2]) {
           const body = await readJson(request);
           const set = {};
-          for (const f of ['trade', 'title', 'description', 'unit', 'status', 'specifiedMfr', 'specifiedProduct']) {
+          if (body.status !== undefined) {
+            // Status changes go through the guarded transition (change-order work block).
+            await setScopeLineStatus({ projectId: pid, lineId: rest[2], status: body.status, user, role: STAFF_ROLE });
+          }
+          for (const f of ['trade', 'title', 'description', 'unit', 'specifiedMfr', 'specifiedProduct']) {
             if (body[f] !== undefined) set[f] = str(body[f], 2000);
           }
           if (body.seq !== undefined) set.seq = num(body.seq);
@@ -444,7 +451,7 @@ async function handle(request, method) {
               baseCost: toDecimal128(priced.baseCost), tariffExposure: toDecimal128(priced.tariffExposure), lineTotal: toDecimal128(priced.lineTotal)
             });
           }
-          await scope.updateOne({ id: rest[2], projectId: pid }, { $set: set });
+          if (Object.keys(set).length) await scope.updateOne({ id: rest[2], projectId: pid }, { $set: set });
           await logEvent(pid, user, STAFF_ROLE, 'scope_updated', { action: 'edit', lineId: rest[2], fields: Object.keys(set) });
           return j({ ok: true });
         }
@@ -882,6 +889,7 @@ async function handle(request, method) {
 
     return err('Not found', 404);
   } catch (e) {
+    if (e instanceof HttpError) return NextResponse.json({ error: e.message, ...(e.extra || {}) }, { status: e.status });
     console.error('API error:', e);
     return err('Internal error', 500);
   }
