@@ -220,7 +220,7 @@ await test('messages: any member posts; restricted audience hidden from excluded
 
 await test('role-restricted writes are refused', async () => {
   assert.equal((await subU.call(`/api/projects/${project.id}`, { method: 'PATCH', body: { phase: 'Close-Out' } })).status, 403);
-  assert.equal((await subU.call(`/api/projects/${project.id}/change-orders`, { method: 'POST', body: { description: 'x', costImpact: 1 } })).status, 403);
+  assert.equal((await subU.call(`/api/projects/${project.id}/changes`, { method: 'POST', body: { title: 'x', reason: 'owner_request', costDelta: '1' } })).status, 403);
   assert.equal((await subU.call(`/api/projects/${project.id}/scope`, { method: 'POST', body: { trade: 'electrical', title: 'x' } })).status, 403);
   assert.equal((await clientU.call(`/api/projects/${project.id}/invite`, { method: 'POST', body: { email: `z-${run}@example.com`, role: 'client' } })).status, 403);
 });

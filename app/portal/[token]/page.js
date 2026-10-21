@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Loader2, ShieldCheck, MapPin, Calendar, DollarSign, FileText, CheckCircle2, Circle, Clock, Building2, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { formatMoney } from '@/lib/format';
 
 const PHASES = ['Discovery', 'Design', 'Permitting', 'Procurement', 'Construction', 'Punch List', 'Close-Out'];
 
@@ -158,12 +159,13 @@ export default function BoardPortal() {
               {changeOrders.map(co => (
                 <div key={co.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
                   <div>
-                    <div className="font-medium">{co.description}</div>
+                    <div className="font-medium">{co.code} · {co.title}</div>
+                    <div className="text-xs text-muted-foreground">{co.reasonText}</div>
                     <div className="text-xs text-muted-foreground">{new Date(co.createdAt).toLocaleDateString()}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-semibold text-primary">{co.costImpact >= 0 ? '+' : ''}${co.costImpact.toLocaleString()}</div>
-                    <div className={`text-[10px] uppercase ${co.status === 'Approved' ? 'text-emerald-400' : co.status === 'Rejected' ? 'text-red-400' : 'text-yellow-400'}`}>{co.status}</div>
+                    <div className="text-sm font-semibold text-primary">{formatMoney(co.costDelta)}</div>
+                    <div className="text-[10px] uppercase text-emerald-400">Signed</div>
                   </div>
                 </div>
               ))}

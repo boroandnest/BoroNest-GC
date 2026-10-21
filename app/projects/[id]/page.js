@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Loader2, ArrowLeft, MapPin, DollarSign, Users, Calendar, FileText, Camera, MessageSquare, CheckCircle2, Circle, Clock, Send, Plus, Wrench, UserPlus, Trash2, Mail, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatMoney, formatQty } from '@/lib/format';
+import CoStatus from '@/components/co-status';
 
 const PHASES = ['Discovery', 'Design', 'Permitting', 'Procurement', 'Construction', 'Punch List', 'Close-Out'];
 
@@ -239,7 +240,7 @@ export default function ProjectHub() {
           </TabsContent>
 
           <TabsContent value="change-orders" className="mt-6">
-            <ChangeOrdersView projectId={p.id} changeOrders={changeOrders} onRefresh={load} canPropose={canSeePricing} />
+            <ChangeOrdersView projectId={p.id} changeOrders={changeOrders} />
           </TabsContent>
 
           <TabsContent value="team" className="mt-6">
@@ -525,53 +526,24 @@ function MessagesView({ projectId, messages, onRefresh, viewerRole }) {
   );
 }
 
-function ChangeOrdersView({ projectId, changeOrders, onRefresh, canPropose }) {
-  const [description, setDescription] = useState('');
-  const [costImpact, setCostImpact] = useState('');
-
-  async function submit() {
-    if (!description || !costImpact) return;
-    const res = await fetch(`/api/projects/${projectId}/change-orders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ description, costImpact: Number(costImpact) })
-    });
-    if (!res.ok) { const d = await res.json().catch(() => ({})); toast.error(d.error || 'Could not propose change order'); return; }
-    setDescription(''); setCostImpact('');
-    toast.success('Change order proposed');
-    onRefresh();
-  }
-
+function ChangeOrdersView({ projectId, changeOrders }) {
+  // changeOrders arrive already projected for this viewer's role (lib/co/project.js).
   return (
-    <div className="space-y-6">
-      {canPropose && <Card>
-        <CardHeader><CardTitle className="text-base">Propose Change Order</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <Textarea placeholder="Describe the change…" value={description} onChange={e => setDescription(e.target.value)} rows={2} />
-          <div className="flex gap-2">
-            <Input type="number" placeholder="Cost impact ($)" value={costImpact} onChange={e => setCostImpact(e.target.value)} className="max-w-xs" />
-            <Button onClick={submit} disabled={!description || !costImpact}>Propose</Button>
-          </div>
-        </CardContent>
-      </Card>}
-      <Card>
-        <CardHeader><CardTitle className="text-base">Change Order Log</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {changeOrders.map(co => (
-            <div key={co.id} className="flex items-center justify-between rounded-lg border border-border p-4">
-              <div>
-                <div className="text-sm font-medium">{co.description}</div>
-                <div className="text-xs text-muted-foreground">Requested by {co.requestedBy} · {new Date(co.createdAt).toLocaleDateString()}</div>
-              </div>
-              <div className="text-right">
-                {co.costImpact !== undefined && <div className={`text-sm font-semibold ${co.costImpact >= 0 ? 'text-primary' : 'text-emerald-400'}`}>{co.costImpact >= 0 ? '+' : ''}${co.costImpact.toLocaleString()}</div>}
-                <div className={`text-xs rounded-full px-2 py-0.5 ${co.status === 'Approved' ? 'bg-emerald-500/15 text-emerald-400' : co.status === 'Rejected' ? 'bg-red-500/15 text-red-400' : 'bg-yellow-500/15 text-yellow-400'} inline-block`}>{co.status}</div>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-    </div>
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0">
+        <div><CardTitle className="text-base">Change orders</CardTitle><CardDescription>Nothing outside the agreed scope starts until the change is signed.</CardDescription></div>
+        <Button asChild size="sm" variant="outline"><Link href={`/projects/${projectId}/changes`}>Open change orders</Link></Button>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {changeOrders.length === 0 && <div className="text-sm text-muted-foreground">No change orders for you on this project.</div>}
+        {changeOrders.map(co => (
+          <Link key={co.id} href={`/projects/${projectId}/changes/${co.id}`} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm hover:border-primary/60">
+            <div className="min-w-0"><span className="font-mono text-[10px] text-muted-foreground">{co.code}</span> <span className="font-medium">{co.title}</span>{co.reasonText && <div className="text-xs text-muted-foreground">{co.reasonText}</div>}</div>
+            <div className="flex shrink-0 items-center gap-3">{co.costDelta !== undefined && <span className="font-mono">{formatMoney(co.costDelta)}</span>}<CoStatus status={co.status} /></div>
+          </Link>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 

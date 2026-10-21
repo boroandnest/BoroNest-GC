@@ -215,4 +215,73 @@ await test('T6 project_financials is staff-only and exposes absorbed losses', as
   assert.equal(f.absorbedLosses, '0.00');
 });
 
+// ---------------------------------------------------------------- T7
+await test('T7 sub fetching a CO on another trade gets 404, not a filtered 200', async () => {
+  const r = await ctx.sub.call(`/api/projects/${ctx.project.id}/changes/${ctx.co3.id}`); // plumbing-only CO
+  assert.equal(r.status, 404);
+  const list = await ctx.sub.call(`/api/projects/${ctx.project.id}/changes`);
+  assert.ok(!list.json.changeOrders.some(c => c.id === ctx.co3.id));
+});
+
+await test('T7 sub sees scope_revision, never bn_error, and only own-scope cost', async () => {
+  const r = await A.call(`/api/projects/${ctx.project.id}/changes`, { method: 'POST', body: {
+    title: 'Re-pull home runs', description: 'We under-measured the conduit run', reason: 'bn_error',
+    lines: [{ scopeLineId: ctx.elecLine.id, costDelta: '1800' }, { scopeLineId: ctx.plumbLine.id, costDelta: '700' }]
+  } });
+  assert.equal(r.status, 201, r.text);
+  ctx.coErr = r.json.changeOrder;
+  const d = await ctx.sub.call(`/api/projects/${ctx.project.id}/changes/${ctx.coErr.id}`);
+  assert.equal(d.status, 200);
+  assert.equal(d.json.changeOrder.reason, 'scope_revision');
+  assert.equal(d.json.changeOrder.costDelta, '1800.00');
+  for (const t of [d.text, (await ctx.sub.call(`/api/projects/${ctx.project.id}/changes`)).text, (await ctx.sub.call(`/api/projects/${ctx.project.id}`)).text]) {
+    assert.ok(!t.includes('bn_error'), 'bn_error leaked');
+    assert.ok(!t.includes('under-measured'), 'internal description leaked');
+  }
+});
+
+await test('T7 building rep response has no costDelta key at all', async () => {
+  for (const path of [`/api/projects/${ctx.project.id}/changes`, `/api/projects/${ctx.project.id}/changes/${ctx.co1.id}`, `/api/projects/${ctx.project.id}`]) {
+    const r = await ctx.rep.call(path);
+    assert.equal(r.status, 200, `${path} ${r.status}`);
+    for (const k of ['costDelta', 'costImpact', 'reason', 'signatureIp']) assert.ok(!r.text.includes(`"${k}"`), `${k} in ${path}`);
+  }
+  const list = (await ctx.rep.call(`/api/projects/${ctx.project.id}/changes`)).json.changeOrders;
+  assert.ok(list.every(c => c.scheduleImpactDays > 0), 'schedule-impacting only');
+});
+
+await test('T7 only client and management can reach the sign endpoint', async () => {
+  const pending = ctx.co3.id;
+  assert.equal((await A.call(`/api/projects/${ctx.project.id}/changes/${pending}/sign`, { method: 'POST', body: { signedName: 'Staff' } })).status, 403);
+  assert.equal((await ctx.sub.call(`/api/projects/${ctx.project.id}/changes/${pending}/sign`, { method: 'POST', body: { signedName: 'Sub' } })).status, 403);
+  assert.equal((await ctx.rep.call(`/api/projects/${ctx.project.id}/changes/${pending}/sign`, { method: 'POST', body: { signedName: 'Rep' } })).status, 403);
+  const outsider = await member('client');
+  assert.equal((await outsider.call(`/api/projects/${ctx.project.id}/changes/${pending}/sign`, { method: 'POST', body: { signedName: 'X' } })).status, 404);
+  ctx.mgmt = await member('management');
+  const inv = await A.call(`/api/projects/${ctx.project.id}/invite`, { method: 'POST', body: { email: ctx.mgmt.email, role: 'management' } });
+  assert.equal(inv.status, 200);
+  const mine = (await ctx.mgmt.call('/api/invitations')).json.invitations.find(i => i.projectId === ctx.project.id);
+  await ctx.mgmt.call(`/api/invitations/${mine.id}/accept`, { method: 'POST' });
+  const ok = await ctx.mgmt.call(`/api/projects/${ctx.project.id}/changes/${pending}/sign`, { method: 'POST', body: { signedName: 'Morgan Manager' } });
+  assert.equal(ok.status, 200, ok.text);
+});
+
+await test('T7 signing records the server-derived IP, not a client-forged one', async () => {
+  const r = await ctx.client.call(`/api/projects/${ctx.project.id}/changes/${ctx.coErr.id}/sign`, {
+    method: 'POST', body: { signedName: 'Pat Client', signatureIp: '9.9.9.9' },
+    headers: { 'x-forwarded-for': '6.6.6.6, 203.0.113.9' } // client forged 6.6.6.6; our ingress appended 203.0.113.9
+  });
+  assert.equal(r.status, 200, r.text);
+  const staffView = (await A.call(`/api/projects/${ctx.project.id}/changes/${ctx.coErr.id}`)).json.changeOrder;
+  assert.equal(staffView.signatureIp, '203.0.113.9');
+  assert.equal(staffView.signedName, 'Pat Client');
+  const clientView = await ctx.client.call(`/api/projects/${ctx.project.id}/changes/${ctx.coErr.id}`);
+  assert.equal(clientView.json.changeOrder.costDelta, '0.00', 'bn_error costs the client nothing');
+  const { client, db: d } = await db();
+  try {
+    const ev = await d.collection('project_events').findOne({ kind: 'change_order_signed', 'payload.coId': ctx.coErr.id });
+    assert.equal(ev.payload.signatureIp, '203.0.113.9');
+  } finally { await client.close(); }
+});
+
 finish();

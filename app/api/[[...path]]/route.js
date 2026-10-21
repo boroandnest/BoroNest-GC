@@ -18,9 +18,10 @@ import { toDecimal128, toDecimal128Exact } from '@/lib/money-storage';
 import { priceLine } from '@/lib/templates/instantiate';
 import { scopeTotals } from '@/lib/scope/totals';
 import { setScopeLineStatus } from '@/lib/co/core';
+import { projectChangeOrderList } from '@/lib/co/project';
 import {
   canSeePricing, projectProject, projectScope, projectMilestones,
-  projectChangeOrders, projectParties, canReadMessage
+  projectParties, canReadMessage
 } from '@/lib/visibility';
 import { v4 as uuid } from 'uuid';
 
@@ -343,7 +344,7 @@ async function handle(request, method) {
           (await getCollection('documents')).find({ projectId: pid }).sort({ uploadedAt: -1 }).limit(200).toArray(),
           (await getCollection('messages')).find({ projectId: pid }).sort({ createdAt: 1 }).limit(500).toArray(),
           (await getCollection('photos')).find({ projectId: pid }).sort({ uploadedAt: -1 }).limit(100).toArray(),
-          (await getCollection('change_orders')).find({ projectId: pid }).sort({ createdAt: -1 }).limit(100).toArray(),
+          (await getCollection('change_orders')).find({ projectId: pid }).sort({ number: -1 }).limit(100).toArray(),
           (await getCollection('project_parties')).find({ projectId: pid }).sort({ invitedAt: 1 }).limit(100).toArray()
         ]);
         // Invoices carry pricing; only full-pricing roles get them.
@@ -354,7 +355,7 @@ async function handle(request, method) {
           documents: visibleDocs.map(cleanId),
           messages: messages.filter(m => canReadMessage(m, viewer.role)).map(cleanId),
           photos: photos.map(cleanId),
-          changeOrders: projectChangeOrders(changeOrders, viewer.role),
+          changeOrders: projectChangeOrderList(changeOrders, viewer),
           parties: projectParties(parties, viewer.role),
           viewerRole: viewer.role,
           canSeePricing: canSeePricing(viewer.role),
@@ -485,26 +486,7 @@ async function handle(request, method) {
         return j({ message: cleanId(msg) });
       }
 
-      // POST /api/projects/:id/change-orders (client side or staff)
-      if (rest[1] === 'change-orders' && method === 'POST') {
-        if (!canSeePricing(viewer.role)) return err('Only the client or Boro & Nest staff can propose change orders', 403);
-        const body = await readJson(request);
-        const description = str(body.description, 2000);
-        if (!description) return err('description required');
-        const cos = await getCollection('change_orders');
-        const co = {
-          id: uuid(),
-          projectId: pid,
-          description,
-          costImpact: num(body.costImpact) || 0,
-          status: 'Proposed',
-          requestedBy: user.name || user.email,
-          requestedById: user.id,
-          createdAt: new Date()
-        };
-        await cos.insertOne(co);
-        return j({ changeOrder: cleanId(co) });
-      }
+      // Change orders: see app/api/projects/[id]/changes (Phase 2).
 
       // POST /api/projects/:id/milestones/:mid/complete (staff verifies a milestone)
       if (rest[1] === 'milestones' && rest[2] && rest[3] === 'complete' && method === 'POST') {
@@ -788,7 +770,7 @@ async function handle(request, method) {
         (await getCollection('milestones')).find({ projectId: p.id }).sort({ dueDate: 1 }).limit(50).toArray(),
         (await getCollection('documents')).find({ projectId: p.id, category: { $in: PORTAL_DOC_CATEGORIES } }).sort({ uploadedAt: -1 }).limit(50).toArray(),
         (await getCollection('photos')).find({ projectId: p.id }).sort({ uploadedAt: -1 }).limit(6).toArray(),
-        (await getCollection('change_orders')).find({ projectId: p.id }).sort({ createdAt: -1 }).limit(50).toArray()
+        (await getCollection('change_orders')).find({ projectId: p.id, status: 'signed' }).sort({ number: -1 }).limit(50).toArray()
       ]);
       // The owner chose to share this with their board, so headline GMP figures are included,
       // but per-milestone payment amounts are not.
@@ -803,7 +785,8 @@ async function handle(request, method) {
         milestones: milestones.map(({ _id, amount, paymentStatus, payeeEmail, ...m }) => m),
         documents: documents.map(d => ({ ...cleanId(d), url: withPortal(d.url) })),
         photos: photos.map(ph => ({ ...cleanId(ph), url: withPortal(ph.url) })),
-        changeOrders: changeOrders.map(cleanId)
+        // Same view the owner gets (prose reason, no signature IP), read-only.
+        changeOrders: projectChangeOrderList(changeOrders, { role: 'client' }).map(({ canSign, ...co }) => co)
       });
     }
 
