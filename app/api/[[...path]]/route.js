@@ -18,6 +18,7 @@ import { toDecimal128, toDecimal128Exact } from '@/lib/money-storage';
 import { priceLine } from '@/lib/templates/instantiate';
 import { scopeTotals } from '@/lib/scope/totals';
 import { setScopeLineStatus } from '@/lib/co/core';
+import { computeFinancials, projectFinancialsFor } from '@/lib/co/financials';
 import { projectChangeOrderList } from '@/lib/co/project';
 import {
   canSeePricing, projectProject, projectScope, projectMilestones,
@@ -357,6 +358,8 @@ async function handle(request, method) {
           photos: photos.map(cleanId),
           changeOrders: projectChangeOrderList(changeOrders, viewer),
           parties: projectParties(parties, viewer.role),
+          // Contingency burn-down: client + management only, computed with lib/money. Absent for everyone else.
+          financials: ['client', 'management'].includes(viewer.role) ? projectFinancialsFor(computeFinancials(p, changeOrders), viewer.role) : undefined,
           viewerRole: viewer.role,
           canSeePricing: canSeePricing(viewer.role),
           isStaff: staff,

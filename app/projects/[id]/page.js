@@ -40,7 +40,7 @@ export default function ProjectHub() {
   if (loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!data) return null;
 
-  const { project: p, milestones, documents, messages, photos, changeOrders, parties = [], isStaff, isOwner, canSeePricing, viewerRole } = data;
+  const { project: p, milestones, documents, messages, photos, changeOrders, parties = [], isStaff, isOwner, canSeePricing, viewerRole, financials } = data;
 
   async function setPhase(phase) {
     const res = await fetch(`/api/projects/${p.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phase }) });
@@ -90,7 +90,8 @@ export default function ProjectHub() {
               {canSeePricing && (
                 <>
                   <div className="text-xs uppercase tracking-widest text-muted-foreground">GMP Ceiling</div>
-                  <div className="text-3xl font-bold text-primary">${(p.gmpCeiling || 0).toLocaleString()}</div>
+                  <div className="text-3xl font-bold text-primary">{financials ? formatMoney(financials.adjustedCeiling, { cents: false }) : `$${(p.gmpCeiling || 0).toLocaleString()}`}</div>
+                  {financials && financials.ceilingAdjustments !== '0.00' && <div className="text-xs text-muted-foreground">Original {formatMoney(financials.gmpCeiling, { cents: false })} + signed changes</div>}
                   <div className="mt-1 text-xs text-muted-foreground">Spent: ${(p.actualSpend || 0).toLocaleString()}{p.contingency ? ` · Contingency: $${p.contingency.toLocaleString()}` : ''}</div>
                 </>
               )}
@@ -147,6 +148,8 @@ export default function ProjectHub() {
             <Info icon={Wrench} label="Change Orders" value={changeOrders.length} />
           </div>
         </motion.div>
+
+        {financials && <ContingencyBar f={financials} />}
 
         <Tabs value={tab} onValueChange={setTab} className="mt-8">
           <TabsList className="flex-wrap h-auto">
@@ -249,6 +252,31 @@ export default function ProjectHub() {
         </Tabs>
       </div>
     </>
+  );
+}
+
+// Renders server-computed figures only (lib/co/financials.js). The width and colour band come from
+// the API; this component does no arithmetic.
+const BAND = { forest: '#253D35', sand: '#C8B89A', alert: '#D4654A' };
+function ContingencyBar({ f }) {
+  return (
+    <div className="mt-6 rounded-2xl border border-border bg-card p-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-[2px] text-muted-foreground">Contingency remaining</div>
+          <div className="mt-1 font-mono text-2xl">{formatMoney(f.contingencyRemaining)} <span className="text-sm text-muted-foreground">of {formatMoney(f.contingency)}</span></div>
+        </div>
+        <div className="text-right text-xs text-muted-foreground">
+          <div>Used by signed changes: <span className="font-mono">{formatMoney(f.contingencyUsed)}</span></div>
+          {f.ceilingAdjustments !== '0.00' && <div>Ceiling now <span className="font-mono">{formatMoney(f.adjustedCeiling)}</span> (+{formatMoney(f.ceilingAdjustments)} by signed changes)</div>}
+          {f.pendingChangeOrders !== '0.00' && <div>Awaiting your signature: <span className="font-mono">{formatMoney(f.pendingChangeOrders)}</span></div>}
+        </div>
+      </div>
+      <div className="mt-3 h-3 overflow-hidden rounded-full border border-border bg-background" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={f.pctRemaining} aria-label="Contingency remaining">
+        <div className="h-full rounded-full transition-all" style={{ width: `${f.pctRemaining}%`, background: BAND[f.band] }} />
+      </div>
+      <div className="mt-1 text-right font-mono text-[10px] uppercase tracking-[2px]" style={{ color: f.band === 'alert' ? BAND.alert : undefined }}>{f.pctRemaining}% remaining</div>
+    </div>
   );
 }
 

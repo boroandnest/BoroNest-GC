@@ -284,4 +284,40 @@ await test('T7 signing records the server-derived IP, not a client-forged one', 
   } finally { await client.close(); }
 });
 
+// ---------------------------------------------------------------- T8
+await test('T8 contingency bar matches the T1 fixture and moves the moment a CO is signed', async () => {
+  const V = JSON.parse(readFileSync(new URL('../shared/fixtures/gmp.vectors.json', import.meta.url)));
+  const c = V.contingency[0];
+  const client = await member('client');
+  const sub = await member('subcontractor', { trades: 'tile' });
+  await verify(A, sub);
+  const rep = await member('building-rep');
+  const p = await projectWith(A, { client, gmpCeiling: c.ceiling, contingency: c.contingency, members: [{ m: sub, role: 'subcontractor', scopeTrades: 'tile' }, { m: rep, role: 'building-rep' }] });
+  const before = (await client.call(`/api/projects/${p.id}`)).json.financials;
+  assert.equal(before.contingencyRemaining, '32000.00');
+  assert.equal(before.pctRemaining, '100.00');
+
+  for (const [i, co] of c.signed_cos.entries()) {
+    const r = await A.call(`/api/projects/${p.id}/changes`, { method: 'POST', body: { title: `CO ${i}`, reason: 'owner_request', costDelta: co.delta, againstContingency: co.against_contingency } });
+    assert.equal(r.status, 201, r.text);
+    const s2 = await client.call(`/api/projects/${p.id}/changes/${r.json.changeOrder.id}/sign`, { method: 'POST', body: { signedName: 'Pat Client' } });
+    assert.equal(s2.status, 200);
+    if (i === 0) assert.equal((await client.call(`/api/projects/${p.id}`)).json.financials.contingencyRemaining, '25800.00', 'bar moves immediately');
+  }
+  const f = (await client.call(`/api/projects/${p.id}`)).json.financials;
+  assert.equal(f.contingencyUsed, c.expect.contingency_used);
+  assert.equal(f.contingencyRemaining, c.expect.contingency_remaining);
+  assert.equal(f.adjustedCeiling, c.expect.adjusted_ceiling);
+  assert.equal(f.pctRemaining, c.expect.pct_remaining);
+  assert.equal(f.band, 'forest');
+  assert.equal(f.absorbedLosses, undefined);
+
+  for (const m of [sub, rep]) {
+    const r = await m.call(`/api/projects/${p.id}`);
+    assert.equal(r.status, 200);
+    assert.equal(r.json.financials, undefined);
+    assert.ok(!/contingency/i.test(r.text), 'no contingency value in props for trade/building roles');
+  }
+});
+
 finish();
