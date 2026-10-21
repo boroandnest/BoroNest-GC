@@ -1,5 +1,7 @@
 # Phase 1 handoff for Emergent
 
+> **Phase 2 is built on top of this.** Read [`PHASE2_STATUS.md`](PHASE2_STATUS.md) for what Phase 2 added, the new env vars (CRON_SECRET, S3_*, STRIPE_*, …) and the review targets.
+
 Branch: `feat/phase-1-workspace`. Read `docs/PHASE1_BUILD.md` (the spec) first, then this file.
 
 ## Stack decision: stay on MongoDB, no Supabase
@@ -61,6 +63,7 @@ Set these in the Emergent environment (the `.env` file is gitignored, so never c
 | `FRAME_ANCESTORS` | prod | e.g. `'self'` to block clickjacking. Defaults to `*` so Emergent's preview iframe keeps working. |
 | `UPLOAD_DIR` | optional | Where uploaded files are stored. Must be persistent storage in production. |
 | `CORS_ORIGINS` | optional | Only needed if another origin calls the API. |
+| Phase 2 variables | see PHASE2_STATUS.md | `CRON_SECRET`, `STORAGE_SIGNING_SECRET`, `S3_*`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `TRUSTED_PROXY_HOPS` |
 
 ## How to test
 

@@ -453,3 +453,16 @@ agent_communication:
       - backend_test.py / backend_test_iteration2.py deleted (they tested the insecure login).
       - New test: tests/api_access_test.mjs (19/19 passing). Needs server with AUTH_DEV_LINKS=true. Never run against production.
       - Remaining Phase 1 tasks are listed in docs/EMERGENT_HANDOFF.md.
+
+  - agent: "main"
+    message: |
+      PHASE 2 MONEY LAYER (branch feat/phase-2-money-layer, on top of Phase 1). READ docs/PHASE2_STATUS.md FIRST.
+      - Stack stays MongoDB + JS. Postgres triggers/CHECKs are MongoDB collection validators (migrations/00N_*.js, run at startup
+        or `npm run migrate`). Do NOT add Supabase/Postgres.
+      - Money: lib/money.js (Decimal), stored as Decimal128, sent as strings. Never compute money in a client component.
+      - Built: templates/estimate (T3–T5), change orders + work block + signature (T6–T7), contingency bar (T8), COI vault +
+        gate + sweep (T9–T10, PHASE2_PATCH P1), Stripe Connect + milestone release (T11–T12), AI prediction log (T13),
+        retainers (T15/P2), violation register + AEP density (T16/P3), S3 storage (P4).
+      - Tests: npm test (144), tests/api_access_test.mjs (20), tests/phase2_api_test.mjs (45) — all passing on real mongod.
+      - Cron: POST /api/cron/{coi-sweep,release-milestones,retainers} with Bearer CRON_SECRET; scheduled by .github/workflows/cron.yml.
+      - Not verified here: live Stripe test mode (no keys), Resend delivery, real MinIO/R2 (tested against moto).
