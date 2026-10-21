@@ -63,7 +63,7 @@ async function signUpAndSignIn(role, extra = {}) {
   assert.ok(r.json.devLink, 'devLink missing — start the server with AUTH_DEV_LINKS=true');
   const { pair, redirect } = await redeem(r.json.devLink);
   const me = await fetch(BASE + '/api/auth/me', { headers: { cookie: pair } }).then(r => r.json());
-  return { email, link: r.json.devLink, location: redirect, user: me.user, call: (p, o = {}) => fetchWith(pair, p, o), status: r.json.status };
+  return { email, link: r.json.devLink, location: redirect, user: me.user, cookiePair: pair, call: (p, o = {}) => fetchWith(pair, p, o), status: r.json.status };
 }
 
 async function fetchWith(pair, path, { method = 'GET', body } = {}) {
@@ -240,6 +240,20 @@ await test('uploads: project files need access; downloads are access-checked', a
   assert.equal((await subU.call(up.json.url)).status, 200);
   const bad = new FormData(); bad.append('file', new Blob(['<script>'], { type: 'text/html' }), 'x.html'); bad.append('projectId', project.id);
   assert.equal((await clientU.call('/api/upload', { method: 'POST', body: bad })).status, 400);
+});
+
+await test('photo uploads are stored as compressed WebP (P4)', async () => {
+  const sharp = (await import('sharp')).default;
+  const png = await sharp({ create: { width: 3000, height: 2000, channels: 3, background: '#8a7' } }).png().toBuffer();
+  const f = new FormData();
+  f.append('file', new Blob([png], { type: 'image/png' }), 'site.png');
+  f.append('projectId', project.id); f.append('kind', 'photo');
+  const up = await clientU.call('/api/upload', { method: 'POST', body: f });
+  assert.equal(up.status, 200, up.text);
+  const res = await fetch(BASE + up.json.url, { headers: { cookie: '' } });
+  assert.equal(res.status, 403, 'photo must not be public');
+  const r = await fetch(BASE + up.json.url, { headers: { cookie: clientU.cookiePair } });
+  assert.equal(r.headers.get('content-type'), 'image/webp');
 });
 
 await test('logout revokes the session server-side', async () => {

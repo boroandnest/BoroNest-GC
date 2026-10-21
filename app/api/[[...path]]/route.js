@@ -9,6 +9,7 @@ import { ensureSeeded } from '@/lib/seed';
 import { j, err, ROLES, ROLE_LABELS } from '@/lib/api-helpers';
 import { sendInvitationEmail, sendScopingCallNotice, sendMagicLinkEmail, emailConfigured } from '@/lib/email';
 import { saveUploadedFile, readStoredFile, checkUpload, humanSize } from '@/lib/uploads';
+import { getSignedUrl } from '@/lib/storage';
 import {
   canSeePricing, projectProject, projectScope, projectMilestones,
   projectChangeOrders, projectParties, canReadMessage
@@ -675,8 +676,9 @@ async function handle(request, method) {
     }
 
     // ============= FILE UPLOAD =============
-    // POST /api/upload  multipart/form-data { file, projectId?, category?, kind?, caption? }
+    // POST /api/upload  multipart/form-data { file, projectId?, category?, kind?, caption?, evidence? }
     // kind=insurance is allowed before sign-up (join form); everything else needs project access.
+    // Photos are compressed to WebP; the original is kept only when evidence=true.
     if (root === 'upload' && method === 'POST') {
       const user = await getUserFromRequest(request);
       const form = await request.formData();
@@ -702,7 +704,10 @@ async function handle(request, method) {
       const access = await resolveAccess(user, p);
       if (!access) return err('No access to this project', 403);
 
-      const saved = await saveUploadedFile(file, `projects/${projectId}`);
+      const saved = await saveUploadedFile(file, `projects/${projectId}`, {
+        photo: kind === 'photo',
+        keepOriginal: kind === 'photo' && form.get('evidence') === 'true'
+      });
       await files.insertOne({ ...saved, kind, ownerUserId: user.id, projectId, uploadedAt: new Date() });
       const fileUrl = `/api/files/${saved.id}`;
 
@@ -727,10 +732,12 @@ async function handle(request, method) {
     }
 
     // ============= FILE DOWNLOAD (access-checked) =============
-    // GET /api/files/:id[?portal=<shareToken>]
+    // GET /api/files/:id[?portal=<shareToken>][&original=1]
+    // Private kinds (e.g. COIs) are never served here — only through their own signed-URL endpoints.
     if (root === 'files' && rest[0] && method === 'GET') {
       const rec = await (await getCollection('files')).findOne({ id: rest[0] });
       if (!rec) return err('File not found', 404);
+      if (rec.private) return err('Not authorized', 403);
       const user = await getUserFromRequest(request);
       let allowed = false;
       if (user && isStaff(user)) allowed = true;
@@ -753,7 +760,14 @@ async function handle(request, method) {
         }
       }
       if (!allowed) return err('Not authorized', 403);
-      const buf = await readStoredFile(rec.storagePath);
+      const wantOriginal = url.searchParams.get('original') === '1' && rec.originalKey && !url.searchParams.get('portal');
+      const key = wantOriginal ? rec.originalKey : (rec.storageKey || rec.storagePath);
+      if ((rec.backend || 'local') === 's3') {
+        // Bucket is private: hand out a 60-second presigned URL after the access check above.
+        const signed = await getSignedUrl(key, { backend: 's3', expiresIn: 60, filename: rec.filename, inline: rec.kind === 'photo', contentType: rec.type });
+        return Response.redirect(signed, 302);
+      }
+      const buf = wantOriginal ? await readStoredFile({ storageKey: rec.originalKey, backend: 'local' }) : await readStoredFile(rec);
       return new Response(buf, {
         headers: {
           'Content-Type': rec.type || 'application/octet-stream',
