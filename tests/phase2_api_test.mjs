@@ -464,4 +464,73 @@ await test('T9 COI files are not reachable without a signed URL', async () => {
   assert.equal((await fetch(t)).status, 403);
 });
 
+// ---------------------------------------------------------------- T10
+await test('T10 sweep: correct tier at exactly 30 and 7 days; twice in one day sends one set', async () => {
+  const { client, db: d } = await db();
+  try {
+    const plus = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+    const c30 = await submitCoi(ctx.coiSub, ctx.coiProject.id); await verifyCoi(c30.id);
+    const c7 = await submitCoi(ctx.coiSub, ctx.coiProject.id); await verifyCoi(c7.id);
+    // superseding logic would skip these (a later cert exists), so pin the far-dated good COI out of the way
+    await d.collection('cois').updateMany({ projectId: ctx.coiProject.id, id: { $nin: [c30.id, c7.id] } }, { $set: { status: 'rejected' }, $unset: { verifiedAt: '', verifiedBy: '' } });
+    await d.collection('cois').updateOne({ id: c30.id }, { $set: { expiresOn: plus(30) } });
+    await d.collection('cois').updateOne({ id: c7.id }, { $set: { expiresOn: plus(7) } });
+    ctx.c7 = c7;
+
+    const unauth = await fetch('http://localhost:3100/api/cron/coi-sweep', { method: 'POST' });
+    assert.equal(unauth.status, 401);
+    const run = () => fetch('http://localhost:3100/api/cron/coi-sweep', { method: 'POST', headers: { authorization: 'Bearer test-cron-secret' } }).then(r => r.json());
+    const first = await run();
+    assert.equal(first.ok, true);
+    const n30 = await d.collection('coi_notices').findOne({ coiId: c30.id });
+    const n7 = await d.collection('coi_notices').findOne({ coiId: c7.id });
+    assert.equal(n30.tier, 'day30', '30 days out -> day30');
+    // c7 is superseded by c30 (later expiry) for notices; un-supersede it to check the 7-day tier
+    await d.collection('cois').updateOne({ id: c30.id }, { $set: { status: 'rejected' }, $unset: { verifiedAt: '', verifiedBy: '' } });
+    await run();
+    const n7b = await d.collection('coi_notices').findOne({ coiId: c7.id });
+    assert.equal(n7 ? n7.tier : n7b.tier, 'day7', '7 days out -> day7');
+    const before = await d.collection('coi_notices').countDocuments({});
+    const again = await run();
+    assert.equal(await d.collection('coi_notices').countDocuments({}), before, 'second run same day sends nothing new');
+    assert.equal(again.summary.notices, 0);
+    assert.ok(await d.collection('project_events').findOne({ kind: 'coi_expiry_notice', 'payload.coiId': c7.id }));
+  } finally { await client.close(); }
+});
+
+await test('T10 expired COI unassigns a future-dated line and only flags an in-progress one', async () => {
+  const { client, db: d } = await db();
+  try {
+    const plus = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+    // two lines assigned on the strength of c7
+    await A.call(`/api/projects/${ctx.coiProject.id}/scope`, { method: 'POST', body: { trade: 'plumbing', title: 'Fixture set', quantity: '1', unitCost: '900' } });
+    const lines = (await A.call(`/api/projects/${ctx.coiProject.id}/scope`)).json.lines;
+    const future = lines.find(l => l.title === 'Fixture set');
+    const current = lines.find(l => l.id === ctx.coiLine.id);
+    await d.collection('cois').updateOne({ id: ctx.c7.id }, { $set: { submittedAt: new Date(Date.now() - 30 * 86400000) } });
+    await d.collection('scope_lines').updateOne({ id: future.id }, { $set: { plannedStart: plus(20) } });
+    await d.collection('scope_lines').updateOne({ id: current.id }, { $set: { plannedStart: plus(20) } });
+    for (const l of [future, current]) {
+      const r = await A.call(`/api/projects/${ctx.coiProject.id}/scope/${l.id}/assign`, { method: 'POST', body: { subUserId: ctx.coiSub.user.id } });
+      assert.equal(r.status, 200, r.text);
+      assert.equal(r.json.assignedCoiId, ctx.c7.id);
+    }
+    await d.collection('scope_lines').updateOne({ id: current.id }, { $set: { status: 'in_progress', plannedStart: plus(-3) } });
+    await d.collection('cois').updateOne({ id: ctx.c7.id }, { $set: { expiresOn: plus(-1) } });
+
+    const r = await fetch('http://localhost:3100/api/cron/coi-sweep', { method: 'POST', headers: { authorization: 'Bearer test-cron-secret' } }).then(x => x.json());
+    assert.equal(r.summary.unassigned, 1);
+    assert.equal(r.summary.flagged, 1);
+    const f = await d.collection('scope_lines').findOne({ id: future.id });
+    assert.equal(f.assignedSub, null);
+    assert.equal(f.unassignedReason, 'coi_expired');
+    const c = await d.collection('scope_lines').findOne({ id: current.id });
+    assert.equal(c.assignedSub, ctx.coiSub.user.id, 'in-progress work is not reverted');
+    assert.equal(c.status, 'in_progress');
+    assert.equal(c.coiLapsed, true);
+    assert.ok(await d.collection('project_events').findOne({ kind: 'coi_lapsed_unassigned', 'payload.lineId': future.id }));
+    assert.ok(await d.collection('project_events').findOne({ kind: 'coi_lapsed_in_progress', 'payload.lineId': current.id }));
+  } finally { await client.close(); }
+});
+
 finish();
