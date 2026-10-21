@@ -721,4 +721,23 @@ await test('T12 payouts_enabled=false -> logged failure + alert, no blind retry'
   } finally { await client.close(); }
 });
 
+// ---------------------------------------------------------------- T13
+await test('T13 migration applied; confidence outside 0–1 rejected by MongoDB; non-staff get no rows', async () => {
+  const { client, db: d } = await db();
+  try {
+    assert.ok(await d.collection('_migrations').findOne({ _id: '007_ai_predictions', finishedAt: { $type: 'date' } }));
+    const base = { agent: 'risk', taskType: 'schedule_slip', projectId: null, prediction: { slipDays: 3 }, envelope: { rationale: 'x' }, createdAt: new Date() };
+    for (const bad of [1.2, -0.01]) await assert.rejects(d.collection('ai_predictions').insertOne({ id: `p-${RUN}-${bad}`, ...base, confidence: bad }), (e) => e.code === 121);
+    await d.collection('ai_predictions').insertOne({ id: `p-${RUN}-ok`, ...base, confidence: 0.72 });
+  } finally { await client.close(); }
+  assert.equal((await A.call('/api/admin/ai-predictions', { method: 'POST', body: { agent: 'risk', taskType: 't', prediction: {}, envelope: { rationale: 'r' }, confidence: '1.5' } })).status, 422);
+  assert.equal((await A.call('/api/admin/ai-predictions', { method: 'POST', body: { agent: 'risk', taskType: 't', prediction: {}, envelope: { rationale: 'r' }, confidence: '0.65' } })).status, 201);
+  for (const m of [ctx.client, ctx.sub, ctx.rep]) {
+    const r = await m.call('/api/admin/ai-predictions');
+    assert.equal(r.status, 403);
+    assert.ok(!r.text.includes('prediction'));
+  }
+  assert.ok((await A.call('/api/admin/ai-predictions')).json.predictions.length >= 2);
+});
+
 finish();
