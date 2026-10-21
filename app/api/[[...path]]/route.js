@@ -11,6 +11,10 @@ import { j, err, ROLES, ROLE_LABELS } from '@/lib/api-helpers';
 import { sendInvitationEmail, sendScopingCallNotice, sendMagicLinkEmail, emailConfigured } from '@/lib/email';
 import { saveUploadedFile, readStoredFile, checkUpload, humanSize } from '@/lib/uploads';
 import { getSignedUrl } from '@/lib/storage';
+import { toMoney, round2 } from '@/lib/money';
+import { toDecimal128, toDecimal128Exact } from '@/lib/money-storage';
+import { priceLine } from '@/lib/templates/instantiate';
+import { scopeTotals } from '@/lib/scope/totals';
 import {
   canSeePricing, projectProject, projectScope, projectMilestones,
   projectChangeOrders, projectParties, canReadMessage
@@ -383,14 +387,18 @@ async function handle(request, method) {
         const scope = await getCollection('scope_lines');
         if (method === 'GET' && !rest[2]) {
           const lines = await scope.find({ projectId: pid }).sort({ seq: 1 }).limit(500).toArray();
-          return j({ lines: projectScope(lines, viewer), canSeePricing: canSeePricing(viewer.role), viewerRole: viewer.role });
+          const visible = projectScope(lines, viewer);
+          // Totals are computed here (lib/money), never in the browser, and only over lines this viewer may price.
+          const totals = canSeePricing(viewer.role) ? scopeTotals(visible) : undefined;
+          return j({ lines: visible, totals, canSeePricing: canSeePricing(viewer.role), viewerRole: viewer.role });
         }
         if (!staff) return err('Only Boro & Nest staff can edit scope', 403);
         if (method === 'POST' && !rest[2]) {
           const body = await readJson(request);
           if (!str(body.trade) || !str(body.title)) return err('trade and title required');
-          const quantity = num(body.quantity);
-          const unitCost = num(body.unitCost);
+          const quantity = toMoney(body.quantity || 0).toDecimalPlaces(4);
+          const unitCost = round2(body.unitCost || 0);
+          const priced = priceLine(quantity, unitCost, body.tariffPct || 0);
           const line = {
             id: uuid(),
             projectId: pid,
@@ -399,9 +407,12 @@ async function handle(request, method) {
             title: str(body.title, 200),
             description: str(body.description, 2000),
             unit: str(body.unit, 10),
-            quantity,
-            unitCost,
-            lineTotal: num(body.lineTotal) ?? (quantity !== null && unitCost !== null ? Math.round(quantity * unitCost * 100) / 100 : null),
+            quantity: toDecimal128Exact(quantity),
+            unitCost: toDecimal128(unitCost),
+            tariffPct: toDecimal128Exact(toMoney(body.tariffPct || 0).toDecimalPlaces(2)),
+            baseCost: toDecimal128(priced.baseCost),
+            tariffExposure: toDecimal128(priced.tariffExposure),
+            lineTotal: toDecimal128(priced.lineTotal),
             isAllowance: !!body.isAllowance,
             status: 'not_started',
             specifiedMfr: str(body.specifiedMfr, 120),
@@ -418,8 +429,21 @@ async function handle(request, method) {
           for (const f of ['trade', 'title', 'description', 'unit', 'status', 'specifiedMfr', 'specifiedProduct']) {
             if (body[f] !== undefined) set[f] = str(body[f], 2000);
           }
-          for (const f of ['seq', 'quantity', 'unitCost', 'lineTotal']) if (body[f] !== undefined) set[f] = num(body[f]);
+          if (body.seq !== undefined) set.seq = num(body.seq);
           if (body.isAllowance !== undefined) set.isAllowance = !!body.isAllowance;
+          if (body.quantity !== undefined || body.unitCost !== undefined || body.tariffPct !== undefined) {
+            // Money is always re-derived from quantity x unit cost (+ tariff) — never taken from the client.
+            const cur = await scope.findOne({ id: rest[2], projectId: pid });
+            if (!cur) return err('Scope line not found', 404);
+            const quantity = toMoney(body.quantity ?? cur.quantity ?? 0).toDecimalPlaces(4);
+            const unitCost = round2(body.unitCost ?? cur.unitCost ?? 0);
+            const tariffPct = toMoney(body.tariffPct ?? cur.tariffPct ?? 0).toDecimalPlaces(2);
+            const priced = priceLine(quantity, unitCost, tariffPct);
+            Object.assign(set, {
+              quantity: toDecimal128Exact(quantity), unitCost: toDecimal128(unitCost), tariffPct: toDecimal128Exact(tariffPct),
+              baseCost: toDecimal128(priced.baseCost), tariffExposure: toDecimal128(priced.tariffExposure), lineTotal: toDecimal128(priced.lineTotal)
+            });
+          }
           await scope.updateOne({ id: rest[2], projectId: pid }, { $set: set });
           await logEvent(pid, user, STAFF_ROLE, 'scope_updated', { action: 'edit', lineId: rest[2], fields: Object.keys(set) });
           return j({ ok: true });

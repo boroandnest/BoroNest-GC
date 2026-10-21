@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Loader2, ArrowLeft, MapPin, DollarSign, Users, Calendar, FileText, Camera, MessageSquare, CheckCircle2, Circle, Clock, Send, Plus, Wrench, UserPlus, Trash2, Mail, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { formatMoney, formatQty } from '@/lib/format';
 
 const PHASES = ['Discovery', 'Design', 'Permitting', 'Procurement', 'Construction', 'Punch List', 'Close-Out'];
 
@@ -262,22 +263,18 @@ function PhaseBadge({ phase }) {
 }
 
 function BudgetView({ project: p, projectId }) {
-  const [lines, setLines] = useState(null);
+  const [scope, setScope] = useState(null);
   useEffect(() => {
-    fetch(`/api/projects/${projectId}/scope`).then(r => r.ok ? r.json() : { lines: [] }).then(d => setLines(d.lines || []));
+    fetch(`/api/projects/${projectId}/scope`).then(r => r.ok ? r.json() : {}).then(d => setScope(d));
   }, [projectId]);
+  // All totals are computed on the server (lib/money); this component only renders them.
+  const lines = scope ? scope.lines || [] : null;
+  const byTrade = scope?.totals?.byTrade || [];
+  const scopeTotal = scope?.totals?.scopeTotal;
   const gmp = p.gmpCeiling || 0;
   const spent = p.actualSpend || 0;
   const remaining = gmp - spent;
   const pct = gmp ? Math.round(spent / gmp * 100) : 0;
-  const byTrade = Object.values((lines || []).reduce((acc, l) => {
-    const k = l.trade || 'other';
-    acc[k] = acc[k] || { trade: k, total: 0, count: 0 };
-    acc[k].total += l.lineTotal || 0;
-    acc[k].count += 1;
-    return acc;
-  }, {}));
-  const scopeTotal = byTrade.reduce((a, t) => a + t.total, 0);
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-4">
@@ -295,18 +292,17 @@ function BudgetView({ project: p, projectId }) {
           ) : (
             <table className="w-full text-sm">
               <thead className="text-xs text-muted-foreground">
-                <tr className="border-b border-border"><th className="pb-2 text-left">Trade</th><th className="pb-2 text-right">Lines</th><th className="pb-2 text-right">Total</th><th className="pb-2 text-right">% of GMP</th></tr>
+                <tr className="border-b border-border"><th className="pb-2 text-left">Trade</th><th className="pb-2 text-right">Lines</th><th className="pb-2 text-right">Total</th></tr>
               </thead>
               <tbody>
                 {byTrade.map(t => (
                   <tr key={t.trade} className="border-b border-border/40 last:border-0">
                     <td className="py-3 font-medium capitalize">{t.trade}</td>
                     <td className="py-3 text-right">{t.count}</td>
-                    <td className="py-3 text-right font-mono">${Math.round(t.total).toLocaleString()}</td>
-                    <td className="py-3 text-right">{gmp ? Math.round(t.total / gmp * 100) : 0}%</td>
+                    <td className="py-3 text-right font-mono">{formatMoney(t.total)}</td>
                   </tr>
                 ))}
-                <tr><td className="pt-3 font-semibold">Scope total</td><td /><td className="pt-3 text-right font-mono font-semibold">${Math.round(scopeTotal).toLocaleString()}</td><td className="pt-3 text-right">{gmp ? Math.round(scopeTotal / gmp * 100) : 0}%</td></tr>
+                <tr><td className="pt-3 font-semibold">Scope total</td><td /><td className="pt-3 text-right font-mono font-semibold">{formatMoney(scopeTotal)}</td></tr>
               </tbody>
             </table>
           )}
@@ -385,11 +381,11 @@ function ScopeView({ projectId, isStaff }) {
                       <td className="py-3 font-mono text-xs text-muted-foreground">{l.seq}</td>
                       <td className="py-3 capitalize">{l.trade}</td>
                       <td className="py-3"><div className="font-medium">{l.title}</div>{(l.specifiedMfr || l.specifiedProduct) && <div className="text-xs text-muted-foreground">{[l.specifiedMfr, l.specifiedProduct].filter(Boolean).join(' — ')}</div>}</td>
-                      <td className="py-3 text-right">{l.quantity ?? '—'}</td>
+                      <td className="py-3 text-right">{formatQty(l.quantity)}</td>
                       <td className="py-3 pl-2 text-muted-foreground">{l.unit}</td>
                       {showMoney && <>
-                        <td className="py-3 text-right font-mono">{l.unitCost != null ? `$${l.unitCost.toLocaleString()}` : '—'}</td>
-                        <td className="py-3 text-right font-mono">{l.lineTotal != null ? `$${l.lineTotal.toLocaleString()}` : '—'}</td>
+                        <td className="py-3 text-right font-mono">{formatMoney(l.unitCost)}</td>
+                        <td className="py-3 text-right font-mono">{formatMoney(l.lineTotal)}{l.tariffExposure && l.tariffExposure !== '0.00' ? <div className="text-[10px] text-muted-foreground">incl. tariff {formatMoney(l.tariffExposure)}</div> : null}</td>
                       </>}
                       <td className="py-3 pl-3 text-xs uppercase tracking-wider text-muted-foreground">{(l.status || '').replace('_', ' ')}</td>
                       {isStaff && <td className="py-3 text-right"><button onClick={() => removeLine(l.id)} className="rounded-md p-1.5 text-muted-foreground hover:text-destructive" aria-label="Delete line"><Trash2 className="h-3.5 w-3.5" /></button></td>}

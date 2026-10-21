@@ -180,7 +180,8 @@ await test('client sees GMP, contingency, every scope line with $', async () => 
   assert.equal(p.json.project.contingency, 5000);
   const s = await clientU.call(`/api/projects/${project.id}/scope`);
   assert.equal(s.json.lines.length, 3);
-  assert.ok(s.json.lines.every(l => typeof l.unitCost === 'number' && typeof l.lineTotal === 'number'));
+  // Money is sent as exact decimal strings (Phase 2 T1/T4), never floats.
+  assert.ok(s.json.lines.every(l => /^\d+\.\d{2}$/.test(l.unitCost) && /^\d+\.\d{2}$/.test(l.lineTotal)));
 });
 
 await test('subcontractor: only own trade lines, no GMP/contingency in the raw response', async () => {
@@ -189,7 +190,7 @@ await test('subcontractor: only own trade lines, no GMP/contingency in the raw r
   for (const k of ['gmpCeiling', 'contingency', 'actualSpend', 'clientEmail', 'shareToken']) assert.ok(!p.text.includes(`"${k}"`), `${k} leaked`);
   const s = await subU.call(`/api/projects/${project.id}/scope`);
   assert.equal(s.json.lines.length, 2);
-  assert.ok(s.json.lines.every(l => l.trade === 'electrical' && typeof l.unitCost === 'number'));
+  assert.ok(s.json.lines.every(l => l.trade === 'electrical' && /^\d+\.\d{2}$/.test(l.unitCost)));
   assert.ok(!s.text.includes('Rough plumbing') && !s.text.includes('9800'));
 });
 
