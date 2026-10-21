@@ -152,6 +152,7 @@ export default function ProjectHub() {
           <div className="mt-4 flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline"><Link href={`/projects/${p.id}/changes`}>Change orders</Link></Button>
             <Button asChild size="sm" variant="outline"><Link href={`/projects/${p.id}/insurance`}>Insurance</Link></Button>
+            {canSeePricing && <Button asChild size="sm" variant="outline"><Link href={`/projects/${p.id}/billing`}>Billing</Link></Button>}
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">

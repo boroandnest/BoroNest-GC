@@ -7,5 +7,6 @@ import m005 from './005_payments.js';
 import m006 from './006_milestone_release.js';
 import m007 from './007_ai_predictions.js';
 import m008 from './008_violations.js';
+import m009 from './009_retainers.js';
 
-export const MIGRATIONS = [m001, m002, m003, m004, m005, m006, m007, m008];
+export const MIGRATIONS = [m001, m002, m003, m004, m005, m006, m007, m008, m009];

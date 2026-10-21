@@ -790,4 +790,63 @@ await test('T16 null unit_count returns unknown, never a computed density', asyn
   await A.call(`/api/buildings/${ctx.building.id}`, { method: 'PUT', body: { unitCount: 18, unitCountVerified: true } });
 });
 
+// ---------------------------------------------------------------- T15 (P2)
+await test('T15 retainer generates monthly periods; re-running creates no duplicates', async () => {
+  const mk = (body) => A.call(`/api/projects/${ctx.coiProject.id}/retainers`, { method: 'POST', body });
+  assert.equal((await mk({ label: 'bad', monthlyAmount: '100', startsOn: '2026-11-03', billDay: 1 })).status, 422, 'starts_on must fall on bill day');
+  const crisis = await mk({ label: 'Crisis response', monthlyAmount: '22500', startsOn: '2026-07-01', endsOn: '2026-10-31' });
+  assert.equal(crisis.status, 201, crisis.text);
+  const steady = await mk({ label: 'Steady state', monthlyAmount: '14800', startsOn: '2026-08-01', endsOn: '2027-03-31', guaranteeKind: 'no_violation_growth', guaranteeCreditPct: '20' });
+  assert.equal(steady.status, 201, steady.text);
+  ctx.steady = steady.json.retainer;
+  const b1 = (await ctx.coiClient.call(`/api/projects/${ctx.coiProject.id}/billing`)).json;
+  assert.equal(b1.periods.filter(p => p.retainerId === crisis.json.retainer.id).length, 4);
+  const cron = () => fetch('http://localhost:3100/api/cron/retainers', { method: 'POST', headers: { authorization: 'Bearer test-cron-secret' } }).then(r => r.json());
+  await cron(); await cron();
+  const b2 = (await ctx.coiClient.call(`/api/projects/${ctx.coiProject.id}/billing`)).json;
+  assert.equal(b2.periods.length, b1.periods.length, 'no duplicate periods');
+  const { client, db: d } = await db();
+  try {
+    const dupes = await d.collection('retainer_periods').aggregate([{ $group: { _id: { r: '$retainerId', s: '$periodStart' }, n: { $sum: 1 } } }, { $match: { n: { $gt: 1 } } }]).toArray();
+    assert.equal(dupes.length, 0);
+  } finally { await client.close(); }
+});
+
+await test('T15 deliverables_met=false bills at the reduced amount — automatically from the violation register', async () => {
+  const b = (await ctx.coiClient.call(`/api/projects/${ctx.coiProject.id}/billing`)).json;
+  const ended = b.periods.filter(p => p.retainerId === ctx.steady.id && p.periodEnd < new Date().toISOString().slice(0, 10));
+  assert.ok(ended.length >= 1, 'at least one closed steady-state period');
+  // All 79 violations from T16 were created today, after these periods: no growth inside them -> met.
+  const closed = ended.filter(p => p.deliverablesMet !== null);
+  assert.ok(closed.length >= 1 && closed.every(p => p.deliverablesMet === true && p.amount === '14800.00'), JSON.stringify(closed));
+  // Manual override to not met -> credited amount, visible to the client.
+  const p0 = ended[0];
+  assert.equal((await A.call(`/api/projects/${ctx.coiProject.id}/retainers/${ctx.steady.id}/periods/${p0.id}`, { method: 'PATCH', body: { deliverablesMet: false } })).status, 200);
+  const after = (await ctx.coiClient.call(`/api/projects/${ctx.coiProject.id}/billing`)).json.periods.find(p => p.id === p0.id);
+  assert.equal(after.amount, '11840.00');
+  assert.equal(after.creditApplied, '2960.00');
+  assert.equal(after.baseAmount, '14800.00');
+});
+
+await test('T15 material pass-through: vendor invoice for client/management only; subs see no billing at all', async () => {
+  const f = new FormData();
+  f.append('vendor', 'Bronx Lumber'); f.append('description', '2x4 studs, 120'); f.append('cost', '1234.56'); f.append('markupPct', '10'); f.append('periodStart', '2026-09-01');
+  f.append('invoice', new Blob(['%PDF-1.4 vendor invoice'], { type: 'application/pdf' }), 'inv.pdf');
+  const r = await A.call(`/api/projects/${ctx.coiProject.id}/passthroughs`, { method: 'POST', body: f });
+  assert.equal(r.status, 201, r.text);
+  const pt = (await ctx.coiClient.call(`/api/projects/${ctx.coiProject.id}/billing`)).json.passthroughs[0];
+  assert.equal(pt.billed, '1358.02');
+  const inv = await ctx.coiClient.call(`/api/projects/${ctx.coiProject.id}/passthroughs/${pt.id}/invoice`);
+  assert.equal(inv.status, 200);
+  assert.equal(await (await fetch(new URL(inv.json.url, 'http://localhost:3100'))).text(), '%PDF-1.4 vendor invoice');
+  for (const m of [ctx.coiSub, ctx.coiRep]) {
+    for (const path of [`/api/projects/${ctx.coiProject.id}/billing`, `/api/projects/${ctx.coiProject.id}/passthroughs/${pt.id}/invoice`]) {
+      const x = await m.call(path);
+      assert.equal(x.status, 404, `${path} ${x.status}`);
+      assert.ok(!/retainer|passthrough|Bronx Lumber|14800/i.test(x.text));
+    }
+    assert.ok(!/retainer|Bronx Lumber/i.test((await m.call(`/api/projects/${ctx.coiProject.id}`)).text));
+  }
+});
+
 finish();
