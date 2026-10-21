@@ -3,5 +3,6 @@ import m001 from './001_scope_templates.js';
 import m002 from './002_change_orders.js';
 import m003 from './003_coi.js';
 import m004 from './004_coi_notices.js';
+import m005 from './005_payments.js';
 
-export const MIGRATIONS = [m001, m002, m003, m004];
+export const MIGRATIONS = [m001, m002, m003, m004, m005];

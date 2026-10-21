@@ -533,4 +533,70 @@ await test('T10 expired COI unassigns a future-dated line and only flags an in-p
   } finally { await client.close(); }
 });
 
+// ---------------------------------------------------------------- T11
+const Stripe = (await import('stripe')).default;
+const WHSEC = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_test_secret';
+async function webhook(event, { sign = true, secret = WHSEC } = {}) {
+  const payload = JSON.stringify(event);
+  const headers = { 'content-type': 'application/json' };
+  if (sign) headers['stripe-signature'] = Stripe.webhooks.generateTestHeaderString({ payload, secret });
+  const r = await fetch('http://localhost:3100/api/stripe/webhook', { method: 'POST', headers, body: payload });
+  return { status: r.status, json: await r.json().catch(() => null) };
+}
+
+await test('T11 unsigned or mis-signed webhook POSTs are rejected with 400', async () => {
+  const ev = { id: `evt_${RUN}_x`, type: 'account.updated', data: { object: { id: 'acct_x', payouts_enabled: true } } };
+  assert.equal((await webhook(ev, { sign: false })).status, 400);
+  assert.equal((await webhook(ev, { secret: 'whsec_wrong' })).status, 400);
+});
+
+await test('T11 signed account.updated syncs payouts_enabled; nothing bank/tax is stored', async () => {
+  const { client, db: d } = await db();
+  try {
+    const acct = `acct_${RUN}`;
+    await d.collection('users').updateOne({ id: ctx.sub.user.id }, { $set: { payouts: { stripeAccountId: acct, payoutsEnabled: false } } });
+    const ev = { id: `evt_${RUN}_1`, type: 'account.updated', livemode: false, data: { object: {
+      id: acct, object: 'account', payouts_enabled: true, details_submitted: true, charges_enabled: false,
+      external_accounts: { data: [{ object: 'bank_account', routing_number: '110000000', last4: '6789', account_holder_name: 'Sub Co' }] },
+      individual: { ssn_last_4_provided: true, id_number_provided: true, first_name: 'Pat' }, business_profile: { name: 'Sub Co' }
+    } } };
+    const r = await webhook(ev);
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+    const st = await ctx.sub.call('/api/stripe/onboard');
+    assert.equal(st.json.payoutsEnabled, true);
+    assert.equal((await webhook(ev)).json.duplicate, true, 'retries are idempotent');
+    assert.equal(await d.collection('payment_events').countDocuments({ eventId: ev.id }), 1);
+
+    const tr = { id: `evt_${RUN}_2`, type: 'transfer.created', account: undefined, data: { object: { id: 'tr_1', object: 'transfer', amount: 620000, currency: 'usd', destination: acct, metadata: { milestoneId: 'ms-x', projectId: 'p-x' }, destination_payment: 'py_1' } } };
+    assert.equal((await webhook(tr)).status, 200);
+    const row = await d.collection('payment_events').findOne({ eventId: tr.id });
+    assert.equal(row.amount.toString(), '6200.00');
+    const all = JSON.stringify(await d.collection('payment_events').find({}).toArray()) + JSON.stringify(await d.collection('users').find({}).toArray());
+    for (const needle of ['110000000', '6789', 'routing', 'ssn', 'Pat', 'bank_account', 'external_accounts']) assert.ok(!all.includes(needle), `${needle} stored`);
+  } finally { await client.close(); }
+});
+
+await test('T11 onboarding is payee-only; without STRIPE_SECRET_KEY it reports not configured', async () => {
+  assert.equal((await ctx.client.call('/api/stripe/onboard', { method: 'POST' })).status, 403);
+  const r = await ctx.sub.call('/api/stripe/onboard', { method: 'POST' });
+  if (process.env.STRIPE_SECRET_KEY) assert.equal(r.status, 200); else assert.equal(r.status, 503);
+});
+
+await test('T11 STRIPE_SECRET_KEY / secret key material is absent from the client bundle', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const root = new URL('../.next/static', import.meta.url).pathname;
+  assert.ok(fs.existsSync(root), 'build first');
+  const stack = [root];
+  while (stack.length) {
+    const dir = stack.pop();
+    for (const f of fs.readdirSync(dir)) {
+      const full = path.join(dir, f);
+      if (fs.statSync(full).isDirectory()) { stack.push(full); continue; }
+      const text = fs.readFileSync(full, 'utf8');
+      for (const needle of ['STRIPE_SECRET', 'STRIPE_WEBHOOK_SECRET', 'sk_live_', 'sk_test_', 'whsec_']) assert.ok(!text.includes(needle), `${needle} in ${full}`);
+    }
+  }
+});
+
 finish();

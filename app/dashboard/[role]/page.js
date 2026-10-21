@@ -115,6 +115,12 @@ function RoleActions({ role, user }) {
       <Button asChild><Link href="/join/client">Edit Profile</Link></Button>
     </div>
   );
+  if (role === 'subcontractor' || role === 'expediter') return (
+    <div className="flex gap-2">
+      <Button asChild variant="outline"><Link href="/payments/setup">Payout setup</Link></Button>
+      <Button asChild variant="outline"><Link href={`/join/${role}`}>Edit Profile</Link></Button>
+    </div>
+  );
   return <Button asChild variant="outline"><Link href={`/join/${role}`}>Edit Profile</Link></Button>;
 }
 
