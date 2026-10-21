@@ -24,6 +24,7 @@ export default function OnboardingWizard() {
   const [data, setData] = useState({});
   const [existingUser, setExistingUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(d => {
@@ -76,36 +77,35 @@ export default function OnboardingWizard() {
   async function submit() {
     setLoading(true);
     try {
-      let user = existingUser;
-      if (!user) {
-        const res = await fetch('/api/auth/signup', {
+      if (existingUser) {
+        // Signed in: just update the profile.
+        const res = await fetch('/api/onboarding', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: data.email,
-            name: data.fullName,
-            phone: data.phone,
-            company: data.company,
-            role
-          })
+          body: JSON.stringify({ name: data.fullName, phone: data.phone, company: data.company, profile: data })
         });
-        const d = await res.json();
-        if (!res.ok) { toast.error(d.error || 'Signup failed'); setLoading(false); return; }
-        user = d.user;
+        if (!res.ok) { const d = await res.json().catch(() => ({})); toast.error(d.error || 'Could not save profile'); setLoading(false); return; }
+        toast.success('Profile saved.');
+        router.push('/dashboard');
+        return;
       }
-      await fetch('/api/onboarding', {
+      // New account: persist everything, then the server emails a one-time sign-in link.
+      const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          email: data.email,
           name: data.fullName,
           phone: data.phone,
           company: data.company,
+          role,
           profile: data
         })
       });
-      toast.success('Profile complete — welcome aboard.');
+      const d = await res.json();
+      if (!res.ok) { toast.error(d.error || 'Signup failed'); setLoading(false); return; }
+      setResult(d);
       setStep(schema.steps.length); // show success screen
-      setTimeout(() => router.push(`/dashboard/${role}`), 1400);
     } catch (e) {
       toast.error('Something went wrong');
       setLoading(false);
@@ -122,8 +122,16 @@ export default function OnboardingWizard() {
             <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-primary/15">
               <CheckCircle2 className="h-8 w-8 text-primary" />
             </div>
-            <h1 className="mt-6 text-3xl font-bold">You're in.</h1>
-            <p className="mt-2 text-muted-foreground">Redirecting to your dashboard…</p>
+            <h1 className="mt-6 text-3xl font-bold">{result?.status === 'pending' ? 'Application received.' : 'Check your email.'}</h1>
+            <p className="mx-auto mt-2 max-w-md text-muted-foreground">
+              We emailed a one-time sign-in link to <strong className="text-foreground">{data.email}</strong>.
+              {result?.status === 'pending' && ' Our team verifies licenses and insurance before granting project access — you can sign in any time to check your status.'}
+            </p>
+            {result && !result.emailSent && !result.devLink && (
+              <p className="mx-auto mt-3 max-w-md text-xs text-muted-foreground">If the email doesn't arrive, request a new link from the sign-in page.</p>
+            )}
+            {result?.devLink && <a href={result.devLink} className="mt-4 inline-block text-xs text-primary underline">Dev only: open sign-in link</a>}
+            <div className="mt-6"><Button asChild variant="outline"><Link href="/login">Go to sign in</Link></Button></div>
           </motion.div>
         </div>
       </>

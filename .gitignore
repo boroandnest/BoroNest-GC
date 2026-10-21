@@ -87,3 +87,7 @@ node_modules/@next/swc-linux-arm64-musl/next-swc.linux-arm64-musl.node
 credentials.json
 *.key
 .credentials
+
+# Uploaded files (served through /api/files with access checks, never committed)
+/storage/
+/public/uploads/

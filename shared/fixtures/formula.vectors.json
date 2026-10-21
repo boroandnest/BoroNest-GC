@@ -1,0 +1,36 @@
+{
+  "_contract": "Loaded by lib/formula.test.js AND lib/formula.storage.test.js (formula + variables through Mongo's BSON/Decimal128 encoding; this app has no SQL side). Error cases here are only ones BOTH suites reject.",
+  "normalize": [
+    { "raw": "Treatment Rooms", "out": "treatment_rooms" },
+    { "raw": "Total SqFt",      "out": "total_sqft" },
+    { "raw": "2ndFloor",        "out": "_2ndfloor" },
+    { "raw": "a--b__c",         "out": "a_b_c" },
+    { "raw": "  padded  ",      "out": "padded" },
+    { "raw": "!!!",             "out": "" }
+  ],
+  "eval": [
+    { "src": "qty * unit_cost", "vars": { "qty": "800", "unit_cost": "25.13" }, "out": "20104.00" },
+    { "src": "round(total_sqft / 32, 0)", "vars": { "total_sqft": "1400" }, "out": "44" },
+    { "src": "max(rooms, 2) * 1500", "vars": { "rooms": "1" }, "out": "3000" },
+    { "src": "(a + b) * c", "vars": { "a": "2", "b": "3", "c": "4" }, "out": "20" },
+    { "src": "-x + 10", "vars": { "x": "3" }, "out": "7" },
+    { "src": "min(a, b, c)", "vars": { "a": "4", "b": "-2.5", "c": "9" }, "out": "-2.5" },
+    { "src": "round(2.5, 0) + round(-2.5, 0)", "vars": {}, "out": "0", "note": "half-up away from zero: 3 + -3" },
+    { "src": "round(1.005, 2)", "vars": {}, "out": "1.01" },
+    { "src": "0.1 + 0.2", "vars": {}, "out": "0.3", "note": "would be 0.30000000000000004 in float" }
+  ],
+  "reject": [
+    { "src": "qty ** 2",        "reason": "power_not_allowed" },
+    { "src": "sqrt(9)",         "reason": "function_not_allowed" },
+    { "src": "a.b",             "reason": "attribute_not_allowed" },
+    { "src": "a > b",           "reason": "comparison_not_allowed" },
+    { "src": "missing_var * 2", "vars": {}, "reason": "unknown_variable" },
+    { "src": "1 / 0",           "reason": "division_by_zero" },
+    { "src": "a % 2",           "vars": { "a": "5" }, "reason": "modulo_not_allowed" },
+    { "src": "a[0]",            "vars": { "a": "5" }, "reason": "subscript_not_allowed" },
+    { "src": "x / (y - y)",     "vars": { "x": "1", "y": "4" }, "reason": "division_by_zero" },
+    { "src": "constructor(1)",  "reason": "function_not_allowed" },
+    { "src": "round(1, 2, 3)",  "reason": "bad_arguments" },
+    { "src": "(1 + 2",          "reason": "syntax_error" }
+  ]
+}

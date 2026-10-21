@@ -19,7 +19,7 @@ export default function ServicesPage() {
         <div className="mt-16 grid gap-6 md:grid-cols-3">
           <ServiceCard icon={Building2} title="Commercial Build-Outs" price="$150K – $500K" items={['Cafés, med-spas, clinics', 'Boutique fitness, retail', 'Restaurants & F&B', 'ADA compliance, DOB filings', 'Turnkey PM under one contract']} cta="Book Scoping Call" ctaHref="/book-call" />
           <ServiceCard icon={Home} title="Residential Gut Renos" price="$300K – $2M" items={['Full apartment gut renovations', 'Co-op board interface', 'Design coordination', 'Custom millwork & finishes', 'Move-in ready delivery']} cta="Book Scoping Call" ctaHref="/book-call" featured />
-          <ServiceCard icon={ShieldCheck} title="LL11 / LL97 Compliance" price="$150 – $280/sqft" items={['QEWI inspection partner', 'Repair GC under one contract', 'PACE financing referral', 'DOB closeout tracking', 'Board-facing portal']} cta="Talk to Nest" ctaHref="/" />
+          <ServiceCard icon={ShieldCheck} title="LL11 / LL97 Compliance" price="$150 – $280/sqft" items={['QEWI inspection partner', 'Repair GC under one contract', 'PACE financing referral', 'DOB closeout tracking', 'Board-facing portal']} cta="Talk to Nest" ctaHref="#ask-nest" />
         </div>
 
         <div className="mt-20 rounded-2xl border border-border bg-card p-8 md:p-12">

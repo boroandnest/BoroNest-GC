@@ -28,12 +28,19 @@ export default function NestChat() {
   const [messages, setMessages] = useState([SEED_MESSAGE]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState(null);
   const scrollRef = useRef(null);
 
+  // Opened from the nav pill (nest:open event) or any link to #ask-nest.
   useEffect(() => {
-    // Try to load current user for personalization
-    fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(d => d && setUser(d.user)).catch(() => {});
+    const show = () => setOpen(true);
+    const onClick = (e) => {
+      const a = e.target.closest?.('a[href$="#ask-nest"]');
+      if (a) { e.preventDefault(); show(); }
+    };
+    if (window.location.hash === '#ask-nest') show();
+    window.addEventListener('nest:open', show);
+    document.addEventListener('click', onClick, true);
+    return () => { window.removeEventListener('nest:open', show); document.removeEventListener('click', onClick, true); };
   }, []);
 
   useEffect(() => {
@@ -54,8 +61,7 @@ export default function NestChat() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: next.map(m => ({ role: m.role, content: m.content })),
-          userContext: user ? { name: user.name, role: user.role, onboardingComplete: user.onboardingComplete } : null
+          messages: next.map(m => ({ role: m.role, content: m.content }))
         })
       });
       if (!res.ok || !res.body) throw new Error('chat failed');
@@ -76,7 +82,7 @@ export default function NestChat() {
         });
       }
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry — Nest is momentarily offline. Please try again in a moment.' }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: "Sorry — Nest is momentarily offline. Leave your details and a Boro & Nest PM will follow up directly.\n[[CTA:SCOPING_CALL]]" }]);
     } finally {
       setLoading(false);
     }

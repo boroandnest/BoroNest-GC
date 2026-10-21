@@ -10,10 +10,12 @@ export default function DashboardRedirect() {
     fetch('/api/auth/me')
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (!d?.user) { router.push('/login'); return; }
-        router.push(`/dashboard/${d.user.role}`);
+        if (!d?.user) { router.replace('/login?next=/dashboard'); return; }
+        if (d.user.isStaff) { router.replace('/admin'); return; }
+        if (d.user.status === 'pending') { router.replace('/pending'); return; }
+        router.replace(`/dashboard/${d.user.role}`);
       })
-      .catch(() => router.push('/login'));
+      .catch(() => router.replace('/login'));
   }, [router]);
 
   return (

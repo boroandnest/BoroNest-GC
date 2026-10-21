@@ -1,0 +1,247 @@
+{
+  "id": "tpl-buildout",
+  "params": [
+    {
+      "name": "total_sqft",
+      "kind": "input",
+      "label": "Total area",
+      "defaultVal": "1400"
+    },
+    {
+      "name": "treatment_rooms",
+      "kind": "input",
+      "label": "Treatment rooms",
+      "defaultVal": "4"
+    },
+    {
+      "name": "ceiling_height",
+      "kind": "input",
+      "label": "Ceiling height",
+      "defaultVal": "10"
+    },
+    {
+      "name": "waste",
+      "kind": "constant",
+      "label": "Waste",
+      "constVal": "1.1"
+    },
+    {
+      "name": "partition_lf",
+      "kind": "calculated",
+      "label": "Partition length",
+      "formula": "treatment_rooms * 36"
+    },
+    {
+      "name": "wall_sqft",
+      "kind": "calculated",
+      "label": "Wall area",
+      "formula": "partition_lf * ceiling_height * 2"
+    }
+  ],
+  "tasks": [
+    {
+      "key": "demo",
+      "trade": "demolition",
+      "title": "Selective demo",
+      "quantityFormula": "total_sqft",
+      "unitCost": "4.50",
+      "dependsOn": []
+    },
+    {
+      "key": "abatement",
+      "trade": "demolition",
+      "title": "Abatement survey",
+      "quantityFormula": "1",
+      "unitCost": "1800",
+      "dependsOn": []
+    },
+    {
+      "key": "framing",
+      "trade": "carpentry",
+      "title": "Metal stud partitions",
+      "quantityFormula": "partition_lf",
+      "unitCost": "38",
+      "dependsOn": [
+        "demo"
+      ]
+    },
+    {
+      "key": "blocking",
+      "trade": "carpentry",
+      "title": "In-wall blocking",
+      "quantityFormula": "treatment_rooms * 6",
+      "unitCost": "45",
+      "dependsOn": [
+        "framing"
+      ]
+    },
+    {
+      "key": "rough_elec",
+      "trade": "electrical",
+      "title": "Electrical rough-in",
+      "quantityFormula": "total_sqft",
+      "unitCost": "9.25",
+      "dependsOn": [
+        "framing"
+      ]
+    },
+    {
+      "key": "rough_plumb",
+      "trade": "plumbing",
+      "title": "Plumbing rough-in",
+      "quantityFormula": "treatment_rooms",
+      "unitCost": "2100",
+      "dependsOn": [
+        "framing"
+      ]
+    },
+    {
+      "key": "hvac_duct",
+      "trade": "hvac",
+      "title": "Ductwork",
+      "quantityFormula": "round(total_sqft / 32, 0)",
+      "unitCost": "310",
+      "dependsOn": [
+        "framing"
+      ]
+    },
+    {
+      "key": "fire_alarm",
+      "trade": "electrical",
+      "title": "Fire alarm devices",
+      "quantityFormula": "max(treatment_rooms, 2) * 2",
+      "unitCost": "420",
+      "dependsOn": [
+        "rough_elec"
+      ]
+    },
+    {
+      "key": "insulation",
+      "trade": "carpentry",
+      "title": "Acoustic insulation",
+      "quantityFormula": "wall_sqft",
+      "unitCost": "1.80",
+      "dependsOn": [
+        "rough_elec",
+        "rough_plumb",
+        "hvac_duct"
+      ]
+    },
+    {
+      "key": "drywall",
+      "trade": "carpentry",
+      "title": "Drywall",
+      "quantityFormula": "round(wall_sqft * waste / 32, 0)",
+      "unitCost": "68",
+      "dependsOn": [
+        "insulation"
+      ]
+    },
+    {
+      "key": "tape",
+      "trade": "carpentry",
+      "title": "Tape and finish",
+      "quantityFormula": "wall_sqft",
+      "unitCost": "1.35",
+      "dependsOn": [
+        "drywall"
+      ]
+    },
+    {
+      "key": "ceiling",
+      "trade": "carpentry",
+      "title": "ACT ceiling",
+      "quantityFormula": "total_sqft",
+      "unitCost": "6.10",
+      "dependsOn": [
+        "hvac_duct",
+        "drywall"
+      ]
+    },
+    {
+      "key": "paint",
+      "trade": "painting",
+      "title": "Paint walls",
+      "quantityFormula": "wall_sqft * waste",
+      "unitCost": "1.25",
+      "dependsOn": [
+        "tape"
+      ]
+    },
+    {
+      "key": "flooring",
+      "trade": "flooring",
+      "title": "LVT flooring",
+      "quantityFormula": "total_sqft * waste",
+      "unitCost": "7.80",
+      "dependsOn": [
+        "paint"
+      ]
+    },
+    {
+      "key": "doors",
+      "trade": "carpentry",
+      "title": "Doors and hardware",
+      "quantityFormula": "treatment_rooms + 2",
+      "unitCost": "1350",
+      "dependsOn": [
+        "paint"
+      ]
+    },
+    {
+      "key": "millwork",
+      "trade": "millwork",
+      "title": "Reception millwork",
+      "quantityFormula": "1",
+      "unitCost": "14500",
+      "dependsOn": [
+        "paint"
+      ]
+    },
+    {
+      "key": "fixtures",
+      "trade": "plumbing",
+      "title": "Sinks and fixtures",
+      "quantityFormula": "treatment_rooms",
+      "unitCost": "950",
+      "dependsOn": [
+        "flooring"
+      ]
+    },
+    {
+      "key": "trim_elec",
+      "trade": "electrical",
+      "title": "Lighting and trim-out",
+      "quantityFormula": "total_sqft",
+      "unitCost": "6.40",
+      "dependsOn": [
+        "ceiling"
+      ]
+    },
+    {
+      "key": "hvac_units",
+      "trade": "hvac",
+      "title": "Split units",
+      "quantityFormula": "treatment_rooms",
+      "unitCost": "3200",
+      "dependsOn": [
+        "hvac_duct"
+      ]
+    },
+    {
+      "key": "punch",
+      "trade": "general",
+      "title": "Punch list and clean",
+      "quantityFormula": "1",
+      "unitCost": "2400",
+      "dependsOn": [
+        "fixtures",
+        "trim_elec",
+        "doors",
+        "millwork",
+        "hvac_units"
+      ]
+    }
+  ],
+  "name": "20-task commercial build-out (test fixture)"
+}

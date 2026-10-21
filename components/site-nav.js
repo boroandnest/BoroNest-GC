@@ -12,13 +12,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { LogOut, User, Settings, LayoutDashboard, Briefcase, FileText, Menu } from 'lucide-react';
+import { LogOut, User, LayoutDashboard, Briefcase, FileText, Menu, ShieldCheck } from 'lucide-react';
+
+export function openNest() {
+  window.dispatchEvent(new Event('nest:open'));
+}
 
 const PUBLIC_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/services', label: 'Services' },
-  { href: '/about', label: 'About' },
-  { href: '/join', label: 'Join' }
+  { href: '/about', label: 'About' }
 ];
 
 export default function SiteNav() {
@@ -46,7 +49,7 @@ export default function SiteNav() {
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">
-          {PUBLIC_LINKS.map(l => (
+          {[...PUBLIC_LINKS, user ? { href: '/dashboard', label: 'Workspace' } : { href: '/join', label: 'Join' }].map(l => (
             <Link
               key={l.href}
               href={l.href}
@@ -55,6 +58,13 @@ export default function SiteNav() {
               {l.label}
             </Link>
           ))}
+          <button
+            type="button"
+            onClick={openNest}
+            className="ml-2 rounded-[20px] border border-[rgba(200,184,154,.38)] bg-[rgba(200,184,154,.11)] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[2px] text-[#C8B89A] hover:bg-[rgba(200,184,154,.2)]"
+          >
+            ✦ Ask Nest →
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -75,14 +85,18 @@ export default function SiteNav() {
                   <div className="mt-1 inline-flex rounded-md bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">{user.role}</div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild><Link href="/dashboard"><LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard</Link></DropdownMenuItem>
+                {user.isStaff ? (
+                  <DropdownMenuItem asChild><Link href="/admin"><ShieldCheck className="mr-2 h-4 w-4" /> PM Console</Link></DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem asChild><Link href="/dashboard"><LayoutDashboard className="mr-2 h-4 w-4" /> Workspace</Link></DropdownMenuItem>
+                )}
                 {user.role === 'client' && (
                   <DropdownMenuItem asChild><Link href="/book-call"><Briefcase className="mr-2 h-4 w-4" /> Book a Call</Link></DropdownMenuItem>
                 )}
                 {user.role === 'subcontractor' && (
                   <DropdownMenuItem asChild><Link href="/dashboard/subcontractor"><FileText className="mr-2 h-4 w-4" /> My Jobs</Link></DropdownMenuItem>
                 )}
-                <DropdownMenuItem asChild><Link href={`/join/${user.role}`}><User className="mr-2 h-4 w-4" /> Edit Profile</Link></DropdownMenuItem>
+                {!user.isStaff && <DropdownMenuItem asChild><Link href={`/join/${user.role}`}><User className="mr-2 h-4 w-4" /> Edit Profile</Link></DropdownMenuItem>}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive"><LogOut className="mr-2 h-4 w-4" /> Log Out</DropdownMenuItem>
               </DropdownMenuContent>
@@ -93,7 +107,7 @@ export default function SiteNav() {
               <Button asChild size="sm"><Link href="/join">Get Started</Link></Button>
             </>
           )}
-          <button className="md:hidden rounded-md p-2 hover:bg-muted" onClick={() => setMobileOpen(v => !v)}>
+          <button className="md:hidden rounded-md p-2 hover:bg-muted" aria-label="Menu" onClick={() => setMobileOpen(v => !v)}>
             <Menu className="h-5 w-5" />
           </button>
         </div>
@@ -101,9 +115,10 @@ export default function SiteNav() {
 
       {mobileOpen && (
         <div className="container flex flex-col gap-1 py-3 md:hidden border-t border-border/60">
-          {PUBLIC_LINKS.map(l => (
+          {[...PUBLIC_LINKS, user ? { href: '/dashboard', label: 'Workspace' } : { href: '/join', label: 'Join' }].map(l => (
             <Link key={l.href} href={l.href} className="rounded-md px-3 py-2 text-sm hover:bg-muted" onClick={() => setMobileOpen(false)}>{l.label}</Link>
           ))}
+          <button type="button" onClick={() => { setMobileOpen(false); openNest(); }} className="rounded-md px-3 py-2 text-left text-sm text-[#C8B89A] hover:bg-muted">✦ Ask Nest</button>
         </div>
       )}
     </nav>
