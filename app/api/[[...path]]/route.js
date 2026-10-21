@@ -2,10 +2,11 @@ import { getCollection } from '@/lib/mongo';
 import {
   getUserFromRequest, createSession, destroySession, clearSessionCookie,
   createMagicLink, consumeMagicLink, safeNext, hashPassword, verifyPassword,
-  isStaff, isVerified, rateLimit, clientIp, ensureAdmin, ensureAuthIndexes,
+  isStaff, isVerified, rateLimit, clientIp,
   STAFF_ROLE, REVIEWED_ROLES
 } from '@/lib/auth';
-import { ensureSeeded } from '@/lib/seed';
+import { bootstrap } from '@/lib/server/bootstrap';
+import { resolveAccess, logEvent } from '@/lib/access';
 import { j, err, ROLES, ROLE_LABELS } from '@/lib/api-helpers';
 import { sendInvitationEmail, sendScopingCallNotice, sendMagicLinkEmail, emailConfigured } from '@/lib/email';
 import { saveUploadedFile, readStoredFile, checkUpload, humanSize } from '@/lib/uploads';
@@ -60,27 +61,6 @@ const AUDIENCE_ROLES = [...PARTY_ROLES, STAFF_ROLE];
 const PORTAL_DOC_CATEGORIES = ['Permits', 'Contracts', 'Change Orders', 'Drawings'];
 const MAX_UPLOAD = 25 * 1024 * 1024;
 
-// ============= ACCESS CONTROL =============
-// Returns the viewer's role on this project, or null if they have no access.
-// The role drives every pricing / visibility decision downstream.
-async function resolveAccess(user, project) {
-  if (!user || !project) return null;
-  if (isStaff(user)) return { role: STAFF_ROLE, trades: [] };
-  if (!isVerified(user)) return null;
-  if ((project.clientEmail || '').toLowerCase() === user.email) return { role: 'client', trades: [] };
-  const parties = await getCollection('project_parties');
-  const party = await parties.findOne({ projectId: project.id, userEmail: user.email, status: 'accepted' });
-  if (party) return { role: party.role, trades: party.scopeTrades?.length ? party.scopeTrades : userTrades(user) };
-  if (project.publicDemo && process.env.SHOW_DEMO_PROJECTS === 'true') return { role: user.role, trades: userTrades(user) };
-  return null;
-}
-
-function userTrades(user) {
-  const t = user?.profile?.trades;
-  if (Array.isArray(t)) return t;
-  return typeof t === 'string' ? t.split(',').map(s => s.trim()).filter(Boolean) : [];
-}
-
 async function listAccessibleProjects(user) {
   const projects = await getCollection('projects');
   if (!user) return [];
@@ -96,15 +76,6 @@ async function listAccessibleProjects(user) {
       : memberships.find(m => m.projectId === p.id)?.role || user.role;
     return projectProject(p, role);
   });
-}
-
-async function logEvent(projectId, user, actorRole, kind, payload = {}) {
-  try {
-    const events = await getCollection('project_events');
-    await events.insertOne({ projectId, actorId: user?.id || null, actorRole: actorRole || user?.role || null, kind, payload, at: new Date() });
-  } catch (e) {
-    console.warn('event log failed:', kind, e.message);
-  }
 }
 
 // ============= HELPERS =============
@@ -163,9 +134,7 @@ async function issueMagicLink(user, next) {
 // ============= CORE HANDLER =============
 async function handle(request, method) {
   try {
-    await ensureAuthIndexes();
-    await ensureAdmin();
-    await ensureSeeded();
+    await bootstrap();
     const { segments, url } = parsePath(request);
     const [root, ...rest] = segments;
 
