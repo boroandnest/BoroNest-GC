@@ -1,0 +1,66 @@
+{
+  "_contract": "Loaded by lib/money.test.js AND lib/money.storage.test.js (the Mongo/Decimal128 side; this app has no Postgres). Every expected value exact at <= 2dp. A case added here must pass on BOTH sides or be removed.",
+  "rounding": [
+    { "in": "1234.565",  "dp": 2, "out": "1234.57", "note": "half-up, not banker's" },
+    { "in": "1234.5649", "dp": 2, "out": "1234.56" },
+    { "in": "0.005",     "dp": 2, "out": "0.01" },
+    { "in": "-0.005",    "dp": 2, "out": "-0.01" },
+    { "in": "0",         "dp": 2, "out": "0.00" }
+  ],
+  "contingency": [
+    {
+      "label": "two contingency COs and one ceiling adjustment",
+      "ceiling": "420000.00",
+      "contingency": "32000.00",
+      "signed_cos": [
+        { "delta": "6200.00",  "against_contingency": true  },
+        { "delta": "4800.00",  "against_contingency": true  },
+        { "delta": "15000.00", "against_contingency": false }
+      ],
+      "expect": {
+        "contingency_used": "11000.00",
+        "contingency_remaining": "21000.00",
+        "ceiling_adjustments": "15000.00",
+        "adjusted_ceiling": "435000.00",
+        "pct_remaining": "65.63"
+      }
+    },
+    {
+      "label": "contingency fully consumed",
+      "ceiling": "300000.00",
+      "contingency": "20000.00",
+      "signed_cos": [{ "delta": "20000.00", "against_contingency": true }],
+      "expect": {
+        "contingency_used": "20000.00",
+        "contingency_remaining": "0.00",
+        "ceiling_adjustments": "0.00",
+        "adjusted_ceiling": "300000.00",
+        "pct_remaining": "0.00"
+      }
+    },
+    {
+      "label": "no contingency set",
+      "ceiling": "150000.00",
+      "contingency": "0.00",
+      "signed_cos": [],
+      "expect": {
+        "contingency_used": "0.00",
+        "contingency_remaining": "0.00",
+        "ceiling_adjustments": "0.00",
+        "adjusted_ceiling": "150000.00",
+        "pct_remaining": "0.00"
+      }
+    }
+  ],
+  "tariff": [
+    { "base": "28400.00", "pct": "50.00", "exposure": "14200.00", "total": "42600.00" },
+    { "base": "11100.00", "pct": "0",     "exposure": "0.00",     "total": "11100.00" },
+    { "base": "9999.99",  "pct": "25.00", "exposure": "2500.00",  "total": "12499.99" }
+  ],
+  "line_total": [
+    { "qty": "800",    "unit_cost": "25.13", "out": "20104.00" },
+    { "qty": "1.5",    "unit_cost": "1000",  "out": "1500.00" },
+    { "qty": "0",      "unit_cost": "500",   "out": "0.00" },
+    { "qty": "333.33", "unit_cost": "3",     "out": "999.99" }
+  ]
+}
