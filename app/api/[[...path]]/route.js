@@ -20,6 +20,8 @@ import { scopeTotals } from '@/lib/scope/totals';
 import { setScopeLineStatus } from '@/lib/co/core';
 import { computeFinancials, projectFinancialsFor } from '@/lib/co/financials';
 import { projectChangeOrderList } from '@/lib/co/project';
+import { attachBuilding } from '@/lib/coi/buildings';
+import { resolveAI } from '@/lib/coi/compliance';
 import {
   canSeePricing, projectProject, projectScope, projectMilestones,
   projectParties, canReadMessage
@@ -325,7 +327,17 @@ async function handle(request, method) {
           createdBy: user.id,
           createdAt: new Date()
         };
+        // Building + unit: the per-unit additional insured resolves here, at creation (P1).
+        // Validate before inserting so a missing resident name never leaves a half-made project.
+        if (body.buildingId) {
+          const b = await (await getCollection('buildings')).findOne({ id: String(body.buildingId) });
+          if (!b) return err('Building not found', 422);
+          try { resolveAI(b, body.unit || {}); } catch (e) {
+            return err(e.code === 'missing_token_value' ? `This building requires ${String(e.detail).replace('_', ' ')} on every certificate — enter it before saving.` : e.message, 422);
+          }
+        }
         await projects.insertOne(p);
+        if (body.buildingId) await attachBuilding({ projectId: p.id, buildingId: body.buildingId, unit: body.unit || {} });
         await logEvent(p.id, user, STAFF_ROLE, 'project_created', { code: p.code });
         return j({ project: cleanId(p) });
       }

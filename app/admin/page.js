@@ -75,7 +75,7 @@ export default function AdminPage() {
           <div className="text-xs font-semibold uppercase tracking-widest text-primary">Internal Admin</div>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">PM Console</h1>
           <p className="mt-1 text-sm text-muted-foreground">Create projects, verify trade professionals, review scoping calls.</p>
-          <div className="mt-3 flex flex-wrap gap-2"><Button asChild size="sm" variant="outline"><Link href="/admin/templates">Scope templates</Link></Button></div>
+          <div className="mt-3 flex flex-wrap gap-2"><Button asChild size="sm" variant="outline"><Link href="/admin/templates">Scope templates</Link></Button><Button asChild size="sm" variant="outline"><Link href="/admin/insurance">Insurance queue</Link></Button><Button asChild size="sm" variant="outline"><Link href="/admin/buildings">Buildings</Link></Button></div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">

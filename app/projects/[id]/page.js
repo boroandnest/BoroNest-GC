@@ -98,6 +98,7 @@ export default function ProjectHub() {
               {isStaff && (
                 <div className="mt-3 flex justify-end gap-2">
                   <Button asChild size="sm" variant="outline"><Link href={`/admin/projects/${p.id}/estimate`}>Estimate</Link></Button>
+                  <Button asChild size="sm" variant="outline"><Link href={`/admin/projects/${p.id}/changes/new`}>New CO</Link></Button>
                 </div>
               )}
               {isStaff && (
@@ -137,6 +138,11 @@ export default function ProjectHub() {
                 );
               })}
             </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline"><Link href={`/projects/${p.id}/changes`}>Change orders</Link></Button>
+            <Button asChild size="sm" variant="outline"><Link href={`/projects/${p.id}/insurance`}>Insurance</Link></Button>
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -221,7 +227,7 @@ export default function ProjectHub() {
           </TabsContent>
 
           <TabsContent value="scope" className="mt-6">
-            <ScopeView projectId={p.id} isStaff={isStaff} />
+            <ScopeView projectId={p.id} isStaff={isStaff} parties={parties} />
           </TabsContent>
 
           {canSeePricing && (
@@ -346,7 +352,22 @@ function BudgetView({ project: p, projectId }) {
   );
 }
 
-function ScopeView({ projectId, isStaff }) {
+function ScopeView({ projectId, isStaff, parties = [] }) {
+  const [subs, setSubs] = useState([]);
+  useEffect(() => {
+    if (!isStaff) return;
+    fetch('/api/subcontractors').then(r => r.ok ? r.json() : { subcontractors: [] }).then(d => {
+      const onProject = new Set(parties.filter(x => x.role === 'subcontractor' && x.status === 'accepted').map(x => x.userEmail));
+      setSubs(d.subcontractors.filter(u => onProject.has(u.email)));
+    });
+  }, [isStaff, parties]);
+  async function assign(lineId, subUserId) {
+    const r = await fetch(`/api/projects/${projectId}/scope/${lineId}/assign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subUserId: subUserId || null }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { toast.error(d.error || 'Could not assign', { duration: 9000 }); load(); return; }
+    toast.success(subUserId ? 'Assigned' : 'Unassigned');
+    load();
+  }
   const [state, setState] = useState(null);
   const [form, setForm] = useState({ trade: '', title: '', unit: 'ea', quantity: '', unitCost: '' });
   const [saving, setSaving] = useState(false);
@@ -406,7 +427,7 @@ function ScopeView({ projectId, isStaff }) {
                     <th className="pb-2 text-left">#</th><th className="pb-2 text-left">Trade</th><th className="pb-2 text-left">Item</th>
                     <th className="pb-2 text-right">Qty</th><th className="pb-2 text-left pl-2">Unit</th>
                     {showMoney && <><th className="pb-2 text-right">Unit cost</th><th className="pb-2 text-right">Line total</th></>}
-                    <th className="pb-2 text-left pl-3">Status</th>{isStaff && <th />}
+                    <th className="pb-2 text-left pl-3">Status</th>{isStaff && <th className="pb-2 text-left pl-3">Assigned</th>}{isStaff && <th />}
                   </tr>
                 </thead>
                 <tbody>
@@ -421,7 +442,8 @@ function ScopeView({ projectId, isStaff }) {
                         <td className="py-3 text-right font-mono">{formatMoney(l.unitCost)}</td>
                         <td className="py-3 text-right font-mono">{formatMoney(l.lineTotal)}{l.tariffExposure && l.tariffExposure !== '0.00' ? <div className="text-[10px] text-muted-foreground">incl. tariff {formatMoney(l.tariffExposure)}</div> : null}</td>
                       </>}
-                      <td className="py-3 pl-3 text-xs uppercase tracking-wider text-muted-foreground">{(l.status || '').replace('_', ' ')}</td>
+                      <td className="py-3 pl-3 text-xs uppercase tracking-wider text-muted-foreground">{(l.status || '').replace('_', ' ')}{(l.blocked || l.openBlocks?.length) ? <div className="normal-case tracking-normal text-[#C8B89A]">Blocked by unsigned CO</div> : null}{l.coiLapsed ? <div className="normal-case tracking-normal text-[#D4654A]">COI lapsed</div> : null}</td>
+                      {isStaff && <td className="py-3 pl-3"><select value={l.assignedSub || ''} onChange={e => assign(l.id, e.target.value)} className="max-w-[160px] rounded-md border border-border bg-background px-2 py-1 text-xs" aria-label="Assigned subcontractor"><option value="">—</option>{subs.map(u => <option key={u.id} value={u.id}>{u.company || u.name || u.email}</option>)}{l.assignedSub && !subs.some(u => u.id === l.assignedSub) && <option value={l.assignedSub}>{l.assignedSubName || 'Assigned'}</option>}</select></td>}
                       {isStaff && <td className="py-3 text-right"><button onClick={() => removeLine(l.id)} className="rounded-md p-1.5 text-muted-foreground hover:text-destructive" aria-label="Delete line"><Trash2 className="h-3.5 w-3.5" /></button></td>}
                     </tr>
                   ))}

@@ -320,4 +320,148 @@ await test('T8 contingency bar matches the T1 fixture and moves the moment a CO 
   }
 });
 
+// ---------------------------------------------------------------- T9 + P1
+const FAIRFIELD = {
+  name: `Fairfield Views ${RUN}`, address: '100 Fairfield Ave, Bronx NY', managingAgent: 'Veritas Property Management LLC',
+  certHolderName: 'FAIRFIELD VIEWS INC.', certHolderCo: 'C/O VERITAS PROPERTY MANAGEMENT LLC', certHolderAddr: '1 Example Plaza, Bronx NY 10463',
+  requiredAiStatic: ['FAIRFIELD VIEWS INC.', 'VERITAS PROPERTY MANAGEMENT LLC'],
+  requiredAiTokens: ['{resident_name}, Apt {unit}', '{resident_phone}'],
+  coiLeadDays: 4, coiLeadIsBusinessDays: true, coiRecipients: ['coi@veritas.example'],
+  requiredGl: '1000000', requiresWc: true, requiredAuto: '1000000', requiredEl: '500000'
+};
+const AI_OK = ['FAIRFIELD VIEWS INC.', 'VERITAS PROPERTY MANAGEMENT LLC', 'Ana Ruiz, Apt 4C', '718-555-0142'];
+
+async function submitCoi(m, projectId, fields = {}) {
+  const f = new FormData();
+  f.append('file', new Blob(['%PDF-1.4 acord 25'], { type: 'application/pdf' }), 'acord.pdf');
+  const all = { glLimit: '2000000', wcPresent: 'true', autoLimit: '1000000', elLimit: '500000', additionalInsured: AI_OK.join('\n'), certHolderText: 'FAIRFIELD VIEWS INC. C/O VERITAS PROPERTY MANAGEMENT LLC', effectiveOn: '2026-01-01', expiresOn: '2027-12-31', ...fields };
+  for (const [k, v] of Object.entries(all)) if (v !== undefined) f.append(k, v);
+  const r = await m.call(`/api/projects/${projectId}/cois`, { method: 'POST', body: f });
+  assert.equal(r.status, 201, r.text);
+  return r.json.coi;
+}
+const verifyCoi = (id, corrections) => A.call(`/api/admin/cois/${id}/verify`, { method: 'POST', body: { status: 'verified', corrections } });
+
+await test('T9/P1 per-unit additional insured resolves at project creation; missing resident name is refused', async () => {
+  const b = await A.call('/api/buildings', { method: 'POST', body: FAIRFIELD });
+  assert.equal(b.status, 201, b.text);
+  ctx.building = b.json.building;
+  const bad = await A.call('/api/projects', { method: 'POST', body: { name: 'x', address: 'y', buildingId: ctx.building.id, unit: { unit: '4C', resident_phone: '718-555-0142' } } });
+  assert.equal(bad.status, 422);
+  assert.match(bad.json.error, /resident name/);
+
+  ctx.coiClient = await member('client');
+  ctx.coiSub = await member('subcontractor', { trades: 'Plumbing', licenses: 'LIC-778899 exp 2027' });
+  await verify(A, ctx.coiSub);
+  ctx.coiRep = await member('building-rep');
+  const r = await A.call('/api/projects', { method: 'POST', body: { name: `Apt 4C ${RUN}`, address: '100 Fairfield Ave 4C', clientEmail: ctx.coiClient.email, gmpCeiling: 60000, buildingId: ctx.building.id, unit: { unit: '4C', resident_name: 'Ana Ruiz', resident_phone: '718-555-0142' } } });
+  assert.equal(r.status, 200, r.text);
+  ctx.coiProject = r.json.project;
+  for (const [m, role, scopeTrades] of [[ctx.coiSub, 'subcontractor', 'plumbing'], [ctx.coiRep, 'building-rep']]) {
+    await A.call(`/api/projects/${ctx.coiProject.id}/invite`, { method: 'POST', body: { email: m.email, role, scopeTrades } });
+    const inv = (await m.call('/api/invitations')).json.invitations.find(i => i.projectId === ctx.coiProject.id);
+    await m.call(`/api/invitations/${inv.id}/accept`, { method: 'POST' });
+  }
+  const req = (await ctx.coiSub.call(`/api/projects/${ctx.coiProject.id}/cois`)).json.requirements;
+  assert.deepEqual(req.additionalInsured, AI_OK);
+  assert.deepEqual(req.certificateHolder, { name: 'FAIRFIELD VIEWS INC.', careOf: 'C/O VERITAS PROPERTY MANAGEMENT LLC', address: '1 Example Plaza, Bronx NY 10463' });
+  assert.ok(!req.additionalInsured.includes(req.certificateHolder.careOf), 'holder is separate from AI');
+  await A.call(`/api/projects/${ctx.coiProject.id}/scope`, { method: 'POST', body: { trade: 'plumbing', title: 'Replace riser', quantity: '1', unitCost: '3400' } });
+  ctx.coiLine = (await A.call(`/api/projects/${ctx.coiProject.id}/scope`)).json.lines[0];
+});
+
+const assign = () => A.call(`/api/projects/${ctx.coiProject.id}/scope/${ctx.coiLine.id}/assign`, { method: 'POST', body: { subUserId: ctx.coiSub.user.id } });
+async function setStart(date) {
+  const { client, db: d } = await db();
+  try { await d.collection('scope_lines').updateOne({ id: ctx.coiLine.id }, { $set: { plannedStart: date } }); } finally { await client.close(); }
+}
+const { addBusinessDays, today } = await import('../lib/dates.js');
+
+await test('T9 assigning a sub with no COI is refused', async () => {
+  const r = await assign();
+  assert.equal(r.status, 409, r.text);
+  assert.equal(r.json.code, 'coi_required');
+  assert.deepEqual(r.json.reasons, ['no_coi']);
+});
+
+await test('T9 a COI missing one required AI entity fails compliance', async () => {
+  await setStart(addBusinessDays(today(), 10));
+  const c = await submitCoi(ctx.coiSub, ctx.coiProject.id, { additionalInsured: AI_OK.filter(x => !x.includes('Ruiz')).join('\n') });
+  assert.equal((await assign()).json.reasons.includes('not_verified'), true, 'unverified does not count');
+  assert.equal((await verifyCoi(c.id)).status, 200);
+  const r = await assign();
+  assert.equal(r.status, 409);
+  assert.deepEqual(r.json.reasons, ['additional_insured_missing']);
+  assert.deepEqual(r.json.missingAi, ['Ana Ruiz, Apt 4C']);
+});
+
+await test('T9 a COI expiring yesterday fails', async () => {
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const c = await submitCoi(ctx.coiSub, ctx.coiProject.id, { expiresOn: yesterday });
+  await verifyCoi(c.id);
+  const r = await assign();
+  assert.equal(r.status, 409);
+  assert.ok(r.json.reasons.includes('expired') || r.json.reasons.includes('additional_insured_missing'));
+  const staff = (await A.call(`/api/projects/${ctx.coiProject.id}/cois`)).json.cois.find(x => x.id === c.id);
+  assert.ok(staff.compliance.reasons.includes('expired'));
+});
+
+await test('T9/P1 auto and employer\'s liability are checked when required', async () => {
+  const c = await submitCoi(ctx.coiSub, ctx.coiProject.id, { autoLimit: '250000', elLimit: '100000' });
+  await verifyCoi(c.id);
+  const staff = (await A.call(`/api/projects/${ctx.coiProject.id}/cois`)).json.cois.find(x => x.id === c.id);
+  assert.deepEqual(staff.compliance.reasons.sort(), ['auto_limit_below_requirement', 'employers_liability_below_requirement']);
+});
+
+await test('P1 lead time: submitted 3 business days before work fails, 4 passes', async () => {
+  const c = await submitCoi(ctx.coiSub, ctx.coiProject.id);
+  await verifyCoi(c.id);
+  await setStart(addBusinessDays(today(), 3));
+  const late = await assign();
+  assert.equal(late.status, 409, late.text);
+  assert.ok(late.json.reasons.includes('submitted_too_late'));
+  await setStart(addBusinessDays(today(), 4));
+  const ok = await assign();
+  assert.equal(ok.status, 200, ok.text);
+  assert.equal(ok.json.assignedCoiId, c.id);
+  ctx.goodCoi = c;
+});
+
+await test('T9 MongoDB rejects an assignment written without a COI reference', async () => {
+  const { client, db: d } = await db();
+  try {
+    await assert.rejects(d.collection('scope_lines').updateOne({ id: ctx.coiLine.id }, { $set: { assignedSub: 'someone' }, $unset: { assignedCoiId: '' } }), (e) => e.code === 121);
+  } finally { await client.close(); }
+});
+
+await test('T9 trade licence numbers never reach non-staff', async () => {
+  for (const m of [ctx.coiClient, ctx.coiRep]) {
+    for (const p of [`/api/projects/${ctx.coiProject.id}`, `/api/projects/${ctx.coiProject.id}/cois`, `/api/projects/${ctx.coiProject.id}/parties`]) {
+      const r = await m.call(p);
+      assert.equal(r.status, 200, `${p} ${r.status}`);
+      assert.ok(!r.text.includes('LIC-778899'), `licence leaked at ${p}`);
+      assert.ok(!r.text.includes('glLimit'), `limits leaked at ${p}`);
+    }
+  }
+  const chips = (await ctx.coiClient.call(`/api/projects/${ctx.coiProject.id}/cois`)).json.chips;
+  assert.equal(chips.length, 1);
+});
+
+await test('T9 COI files are not reachable without a signed URL', async () => {
+  const { client, db: d } = await db();
+  let file;
+  try { file = await d.collection('files').findOne({ id: (await d.collection('cois').findOne({ id: ctx.goodCoi.id })).fileId }); } finally { await client.close(); }
+  for (const m of [ctx.coiSub, A, ctx.coiClient]) assert.equal((await m.call(`/api/files/${file.id}`)).status, 403, 'generic file route refuses private kinds');
+  assert.equal((await ctx.coiClient.call(`/api/projects/${ctx.coiProject.id}/cois/${ctx.goodCoi.id}/file`)).status, 404);
+  const signed = await ctx.coiSub.call(`/api/projects/${ctx.coiProject.id}/cois/${ctx.goodCoi.id}/file`);
+  assert.equal(signed.status, 200);
+  const anon = await fetch(new URL(signed.json.url, 'http://localhost:3100'));
+  assert.equal(anon.status, 200, 'signed URL works without a session');
+  assert.equal(await anon.text(), '%PDF-1.4 acord 25');
+  const u = new URL(signed.json.url, 'http://localhost:3100'); u.searchParams.delete('sig');
+  assert.equal((await fetch(u)).status, 403);
+  const t = new URL(signed.json.url, 'http://localhost:3100'); t.searchParams.set('exp', '1');
+  assert.equal((await fetch(t)).status, 403);
+});
+
 finish();
