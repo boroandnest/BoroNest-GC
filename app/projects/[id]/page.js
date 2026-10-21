@@ -46,6 +46,13 @@ export default function ProjectHub() {
     const res = await fetch(`/api/projects/${p.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phase }) });
     if (res.ok) { toast.success(`Phase set to ${phase}`); load(); } else toast.error('Could not update phase');
   }
+  async function disputeMilestone(mid) {
+    const reason = prompt('What is wrong with this milestone? Payment is paused while we look at it.');
+    if (reason === null) return;
+    const res = await fetch(`/api/projects/${p.id}/milestones/${mid}/dispute`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }) });
+    const d = await res.json().catch(() => ({}));
+    if (res.ok) { toast.success('Dispute opened — payment paused'); load(); } else toast.error(d.error || 'Could not open dispute');
+  }
   async function verifyMilestone(mid) {
     const res = await fetch(`/api/projects/${p.id}/milestones/${mid}/complete`, { method: 'POST' });
     if (res.ok) { toast.success('Milestone verified'); load(); } else toast.error('Could not verify milestone');
@@ -99,6 +106,7 @@ export default function ProjectHub() {
                 <div className="mt-3 flex justify-end gap-2">
                   <Button asChild size="sm" variant="outline"><Link href={`/admin/projects/${p.id}/estimate`}>Estimate</Link></Button>
                   <Button asChild size="sm" variant="outline"><Link href={`/admin/projects/${p.id}/changes/new`}>New CO</Link></Button>
+                  <Button asChild size="sm" variant="outline"><Link href={`/admin/projects/${p.id}/milestones`}>Milestones</Link></Button>
                 </div>
               )}
               {isStaff && (
@@ -207,18 +215,20 @@ export default function ProjectHub() {
                     <div className="flex items-center gap-3">
                       {m.status === 'complete' ? <CheckCircle2 className="h-5 w-5 text-emerald-400" /> : m.status === 'in_progress' ? <Clock className="h-5 w-5 text-primary animate-pulse" /> : <Circle className="h-5 w-5 text-muted-foreground" />}
                       <div>
-                        <div className="text-sm font-medium">{m.name}</div>
-                        <div className="text-xs text-muted-foreground">{m.phase} · Due {new Date(m.dueDate).toLocaleDateString()}</div>
+                        <div className="text-sm font-medium">{m.title || m.name}</div>
+                        <div className="text-xs text-muted-foreground">{[m.phase || m.trigger, m.dueDate ? `Due ${new Date(m.dueDate).toLocaleDateString()}` : null, m.inDisputeWindow ? `Payment releases ${new Date(m.releaseEta).toLocaleString()}` : null].filter(Boolean).join(' · ')}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 text-right">
                       {m.amount !== undefined && (
                         <div>
-                          <div className="text-sm font-semibold">${m.amount.toLocaleString()}</div>
+                          <div className="text-sm font-semibold">{formatMoney(m.amount)}</div>
                           <div className="text-xs text-muted-foreground">{(m.paymentStatus || '').replace('_', ' ')}</div>
                         </div>
                       )}
                       {isStaff && m.status !== 'complete' && <Button size="sm" variant="outline" onClick={() => verifyMilestone(m.id)}>Verify</Button>}
+                      {m.canDispute && (viewerRole === 'client' || viewerRole === 'management') && <Button size="sm" variant="outline" onClick={() => disputeMilestone(m.id)}>Dispute</Button>}
+                      {m.releaseStatus === 'disputed' && <span className="text-xs text-[#D4654A]">Disputed</span>}
                     </div>
                   </div>
                 ))}

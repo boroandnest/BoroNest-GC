@@ -21,6 +21,7 @@ import { setScopeLineStatus } from '@/lib/co/core';
 import { computeFinancials, projectFinancialsFor } from '@/lib/co/financials';
 import { projectChangeOrderList } from '@/lib/co/project';
 import { attachBuilding } from '@/lib/coi/buildings';
+import { verifyMilestone, milestoneView } from '@/lib/payments/milestones';
 import { resolveAI } from '@/lib/coi/compliance';
 import {
   canSeePricing, projectProject, projectScope, projectMilestones,
@@ -346,7 +347,7 @@ async function handle(request, method) {
       if (!p) return err('Project not found', 404);
       const access = await resolveAccess(user, p);
       if (!access) return err('You do not have access to this project. Ask the project owner to invite you.', 403);
-      const viewer = { role: access.role, trades: access.trades, email: user.email };
+      const viewer = { role: access.role, trades: access.trades, email: user.email, id: user.id };
       const staff = access.role === STAFF_ROLE;
       const isOwner = access.role === 'client' && (p.clientEmail || '').toLowerCase() === user.email;
 
@@ -364,7 +365,7 @@ async function handle(request, method) {
         const visibleDocs = canSeePricing(viewer.role) ? documents : documents.filter(d => d.category !== 'Invoices');
         return j({
           project: projectProject(p, viewer.role),
-          milestones: projectMilestones(milestones, viewer),
+          milestones: projectMilestones(milestones.map(m => milestoneView(m)), viewer),
           documents: visibleDocs.map(cleanId),
           messages: messages.filter(m => canReadMessage(m, viewer.role)).map(cleanId),
           photos: photos.map(cleanId),
@@ -503,16 +504,10 @@ async function handle(request, method) {
 
       // Change orders: see app/api/projects/[id]/changes (Phase 2).
 
-      // POST /api/projects/:id/milestones/:mid/complete (staff verifies a milestone)
+      // POST /api/projects/:id/milestones/:mid/complete — Phase 1 path; same as .../verify (opens the 24h window).
       if (rest[1] === 'milestones' && rest[2] && rest[3] === 'complete' && method === 'POST') {
         if (!staff) return err('Only Boro & Nest staff can verify milestones', 403);
-        const ms = await getCollection('milestones');
-        const r = await ms.updateOne(
-          { id: rest[2], projectId: pid },
-          { $set: { status: 'complete', completedAt: new Date(), verifiedBy: user.id, paymentStatus: 'processing' } }
-        );
-        if (!r.matchedCount) return err('Milestone not found', 404);
-        await logEvent(pid, user, STAFF_ROLE, 'milestone_verified', { milestoneId: rest[2] });
+        await verifyMilestone({ project: p, milestoneId: rest[2], user });
         return j({ ok: true });
       }
 
@@ -797,7 +792,7 @@ async function handle(request, method) {
           complianceType: p.complianceType || 'LL11/LL97',
           filingStatus: p.filingStatus || 'In progress'
         },
-        milestones: milestones.map(({ _id, amount, paymentStatus, payeeEmail, ...m }) => m),
+        milestones: projectMilestones(milestones, { role: 'portal' }).map(({ photoIds, verifiedBy, ...m }) => m),
         documents: documents.map(d => ({ ...cleanId(d), url: withPortal(d.url) })),
         photos: photos.map(ph => ({ ...cleanId(ph), url: withPortal(ph.url) })),
         // Same view the owner gets (prose reason, no signature IP), read-only.

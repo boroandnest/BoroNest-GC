@@ -7,7 +7,8 @@ name: scheduled-jobs
 
 on:
   schedule:
-    - cron: '17 9 * * *'   # 05:17 New York (EDT) — COI expiry sweep
+    - cron: '17 9 * * *'     # 05:17 New York (EDT) — COI expiry sweep
+    - cron: '*/15 * * * *'   # milestone release (idempotent; safe to overlap)
   workflow_dispatch:
     inputs:
       job:
@@ -15,7 +16,7 @@ on:
         required: true
         default: coi-sweep
         type: choice
-        options: [coi-sweep]
+        options: [coi-sweep, release-milestones]
 
 permissions: {}
 
@@ -28,6 +29,7 @@ jobs:
         id: pick
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "job=${{ inputs.job }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "*/15 * * * *" ]; then echo "job=release-milestones" >> "$GITHUB_OUTPUT"
           else echo "job=coi-sweep" >> "$GITHUB_OUTPUT"; fi
       - name: Call endpoint
         env:

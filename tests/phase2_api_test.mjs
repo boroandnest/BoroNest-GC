@@ -599,4 +599,126 @@ await test('T11 STRIPE_SECRET_KEY / secret key material is absent from the clien
   }
 });
 
+// ---------------------------------------------------------------- T12
+// The release job runs in-process against the same database with a Stripe double that behaves like
+// Stripe: the same idempotency key always returns the same transfer.
+let fakeTransferSeq = 0;
+function fakeStripe() {
+  const byKey = new Map();
+  const f = { calls: 0, transfers: byKey, transfers_api: null };
+  f.transfers = { create: async (params, opts) => {
+    f.calls++;
+    await new Promise(r => setTimeout(r, 20));
+    if (!opts?.idempotencyKey) throw new Error('missing idempotency key');
+    if (!byKey.has(opts.idempotencyKey)) byKey.set(opts.idempotencyKey, { id: `tr_${++fakeTransferSeq}_${RUN}`, ...params });
+    return byKey.get(opts.idempotencyKey);
+  } };
+  f.byKey = byKey;
+  return f;
+}
+
+await test('T12 verify opens a 24h window; a sub sees only their own milestones, a client sees all', async () => {
+  const { client, db: d } = await db();
+  try {
+    await d.collection('users').updateOne({ id: ctx.sub.user.id }, { $set: { payouts: { stripeAccountId: `acct_${RUN}`, payoutsEnabled: true } } });
+  } finally { await client.close(); }
+  ctx.sub2 = await member('subcontractor', { trades: 'hvac' });
+  await verify(A, ctx.sub2);
+  const inv = await A.call(`/api/projects/${ctx.project.id}/invite`, { method: 'POST', body: { email: ctx.sub2.email, role: 'subcontractor', scopeTrades: 'hvac' } });
+  assert.equal(inv.status, 200);
+  const mine = (await ctx.sub2.call('/api/invitations')).json.invitations.find(i => i.projectId === ctx.project.id);
+  await ctx.sub2.call(`/api/invitations/${mine.id}/accept`, { method: 'POST' });
+
+  const mk = (title, amount, payeeId) => A.call(`/api/projects/${ctx.project.id}/milestones`, { method: 'POST', body: { title, amount, payeeId, trigger: 'Inspection passed' } });
+  ctx.msA = (await mk('Electrical rough-in passed', '6200.00', ctx.sub.user.id)).json.milestone;
+  ctx.msB = (await mk('Electrical trim-out', '4100.50', ctx.sub.user.id)).json.milestone;
+  ctx.msC = (await mk('HVAC set', '9800.00', ctx.sub2.user.id)).json.milestone;
+  ctx.msD = (await mk('No payouts', '100.00', ctx.sub2.user.id)).json.milestone;
+  assert.ok(ctx.msA && ctx.msC, 'created');
+
+  const v = await A.call(`/api/projects/${ctx.project.id}/milestones/${ctx.msA.id}/verify`, { method: 'POST', body: {} });
+  assert.equal(v.status, 200, v.text);
+  const eta = new Date(v.json.milestone.releaseEta).getTime() - new Date(v.json.milestone.verifiedAt).getTime();
+  assert.equal(eta, 24 * 3600000);
+  assert.equal(v.json.milestone.releaseStatus, 'in_window');
+
+  const subView = (await ctx.sub.call(`/api/projects/${ctx.project.id}/milestones`)).json.milestones;
+  assert.deepEqual(subView.map(m => m.id).sort(), [ctx.msA.id, ctx.msB.id].sort(), 'sub sees only own');
+  const sub2View = (await ctx.sub2.call(`/api/projects/${ctx.project.id}`)).json.milestones;
+  assert.ok(sub2View.every(m => [ctx.msC.id, ctx.msD.id].includes(m.id)));
+  const clientView = (await ctx.client.call(`/api/projects/${ctx.project.id}/milestones`)).json.milestones;
+  for (const m of [ctx.msA, ctx.msB, ctx.msC]) assert.ok(clientView.some(x => x.id === m.id), 'client sees all');
+  const repView = await ctx.rep.call(`/api/projects/${ctx.project.id}/milestones`);
+  assert.ok(!repView.text.includes('"amount"') && !repView.text.includes('6200'), 'building rep sees no money');
+});
+
+await test('T12 run the release job twice (and concurrently) against a due milestone — exactly one transfer', async () => {
+  const { client, db: d } = await db();
+  try {
+    await d.collection('milestones').updateOne({ id: ctx.msA.id }, { $set: { releaseEta: new Date(Date.now() - 60000) } });
+    const { releaseDueMilestones } = await import('../lib/payments/release.js');
+    const stripe = fakeStripe();
+    const [r1, r2] = await Promise.all([releaseDueMilestones({ stripe }), releaseDueMilestones({ stripe })]);
+    const r3 = await releaseDueMilestones({ stripe });
+    assert.equal(r1.released + r2.released + r3.released, 1);
+    assert.equal(stripe.calls, 1, 'Stripe called once');
+    assert.deepEqual([...stripe.byKey.keys()], [`ms_${ctx.msA.id}`]);
+    const m = await d.collection('milestones').findOne({ id: ctx.msA.id });
+    assert.equal(m.releaseStatus, 'released');
+    assert.match(m.stripeTransferId, /^tr_\d+_/);
+    assert.equal([...stripe.byKey.values()][0].amount, 620000, 'exact cents');
+
+    // crash-after-Stripe simulation: forget the recorded transfer, re-run — Stripe returns the same one
+    await d.collection('milestones').updateOne({ id: ctx.msA.id }, { $set: { releaseStatus: 'in_window' }, $unset: { stripeTransferId: '' } });
+    await releaseDueMilestones({ stripe });
+    assert.equal(stripe.byKey.size, 1, 'idempotency key prevented a second transfer');
+    assert.equal((await d.collection('milestones').findOne({ id: ctx.msA.id })).stripeTransferId, m.stripeTransferId);
+    await assert.rejects(d.collection('milestones').updateOne({ id: ctx.msB.id }, { $set: { releaseStatus: 'released' } }), (e) => e.code === 121, 'released without transfer id is impossible');
+  } finally { await client.close(); }
+});
+
+await test('T12 a dispute inside the window prevents release; resolving lets the next run release', async () => {
+  const { client, db: d } = await db();
+  try {
+    const { releaseDueMilestones } = await import('../lib/payments/release.js');
+    await A.call(`/api/projects/${ctx.project.id}/milestones/${ctx.msB.id}/verify`, { method: 'POST', body: {} });
+    assert.equal((await ctx.sub.call(`/api/projects/${ctx.project.id}/milestones/${ctx.msB.id}/dispute`, { method: 'POST', body: { reason: 'x' } })).status, 403, 'only client disputes');
+    const disp = await ctx.client.call(`/api/projects/${ctx.project.id}/milestones/${ctx.msB.id}/dispute`, { method: 'POST', body: { reason: 'Trim not finished in bathroom' } });
+    assert.equal(disp.status, 200, disp.text);
+    await d.collection('milestones').updateOne({ id: ctx.msB.id }, { $set: { releaseEta: new Date(Date.now() - 60000) } });
+    const stripe = fakeStripe();
+    assert.equal((await releaseDueMilestones({ stripe })).released, 0);
+    assert.equal(stripe.calls, 0);
+    assert.equal((await ctx.client.call(`/api/projects/${ctx.project.id}/milestones/${ctx.msB.id}/dispute`, { method: 'POST', body: {} })).status, 409, 'outside window');
+    assert.equal((await A.call(`/api/projects/${ctx.project.id}/milestones/${ctx.msB.id}/resolve`, { method: 'POST', body: { note: 'Finished' } })).status, 200);
+    const r = await releaseDueMilestones({ stripe });
+    assert.equal(r.released, 1);
+    assert.equal([...stripe.byKey.values()][0].amount, 410050);
+  } finally { await client.close(); }
+});
+
+await test('T12 payouts_enabled=false -> logged failure + alert, no blind retry', async () => {
+  const { client, db: d } = await db();
+  try {
+    const { releaseDueMilestones } = await import('../lib/payments/release.js');
+    await A.call(`/api/projects/${ctx.project.id}/milestones/${ctx.msD.id}/verify`, { method: 'POST', body: {} });
+    await d.collection('milestones').updateOne({ id: ctx.msD.id }, { $set: { releaseEta: new Date(Date.now() - 60000) } });
+    const alerts = [];
+    const stripe = fakeStripe();
+    const r = await releaseDueMilestones({ stripe, notify: async (x) => alerts.push(x) });
+    assert.equal(r.failed, 1);
+    assert.equal(stripe.calls, 0);
+    assert.equal(alerts.length, 1);
+    assert.equal(alerts[0].reason, 'payouts_not_enabled');
+    const m = await d.collection('milestones').findOne({ id: ctx.msD.id });
+    assert.equal(m.releaseStatus, 'transfer_failed');
+    assert.ok(await d.collection('payment_events').findOne({ type: 'transfer_failed', milestoneId: ctx.msD.id }));
+    assert.ok(await d.collection('project_events').findOne({ kind: 'transfer_failed', 'payload.milestoneId': ctx.msD.id }));
+    const again = await releaseDueMilestones({ stripe, notify: async (x) => alerts.push(x) });
+    assert.equal(again.due, 0, 'not retried automatically');
+    assert.equal(alerts.length, 1);
+    assert.equal((await A.call(`/api/projects/${ctx.project.id}/milestones/${ctx.msD.id}/retry`, { method: 'POST' })).status, 200, 'staff can re-queue');
+  } finally { await client.close(); }
+});
+
 finish();
