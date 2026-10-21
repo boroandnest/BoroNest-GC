@@ -75,6 +75,7 @@ export default function AdminPage() {
           <div className="text-xs font-semibold uppercase tracking-widest text-primary">Internal Admin</div>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">PM Console</h1>
           <p className="mt-1 text-sm text-muted-foreground">Create projects, verify trade professionals, review scoping calls.</p>
+          <div className="mt-3 flex flex-wrap gap-2"><Button asChild size="sm" variant="outline"><Link href="/admin/templates">Scope templates</Link></Button></div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
@@ -158,7 +159,7 @@ export default function AdminPage() {
                     <td className="py-3 text-muted-foreground">{p.clientEmail || '—'}</td>
                     <td className="py-3 text-right font-mono">${((p.gmpCeiling || 0) / 1000).toFixed(0)}K</td>
                     <td className="py-3 text-right">{p.percentComplete || 0}%</td>
-                    <td className="py-3 text-right"><Button asChild size="sm" variant="ghost"><Link href={`/projects/${p.id}`}>Open <ArrowRight className="ml-1 h-3 w-3" /></Link></Button></td>
+                    <td className="py-3 text-right whitespace-nowrap"><Button asChild size="sm" variant="ghost"><Link href={`/admin/projects/${p.id}/estimate`}>Estimate</Link></Button><Button asChild size="sm" variant="ghost"><Link href={`/projects/${p.id}`}>Open <ArrowRight className="ml-1 h-3 w-3" /></Link></Button></td>
                   </tr>
                 ))}
               </tbody>

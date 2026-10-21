@@ -94,6 +94,11 @@ export default function ProjectHub() {
                 </>
               )}
               {isStaff && (
+                <div className="mt-3 flex justify-end gap-2">
+                  <Button asChild size="sm" variant="outline"><Link href={`/admin/projects/${p.id}/estimate`}>Estimate</Link></Button>
+                </div>
+              )}
+              {isStaff && (
                 <select value={p.phase} onChange={e => setPhase(e.target.value)} className="mt-3 rounded-md border border-border bg-background px-2 py-1 text-xs" aria-label="Project phase">
                   {PHASES.map(ph => <option key={ph}>{ph}</option>)}
                 </select>

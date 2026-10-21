@@ -121,4 +121,36 @@ await test('T4 instantiated lines keep the Phase 1 pricing gate (sub: own trade;
   assert.match(cl.json.totals.scopeTotal, /^\d+\.\d{2}$/);
 });
 
+// ---------------------------------------------------------------- T5
+await test('T5 worksheet: rollup equals lib/money, stale flag at 130 days, tariff + domestic alternative', async () => {
+  const { toMoney, toMoneyString } = await import('../lib/money.js');
+  const tpl = (await A.call(`/api/templates/${ctx.buildout.id}`)).json.template;
+  const old = new Date(Date.now() - 130 * 86400000).toISOString();
+  for (const t of tpl.tasks) {
+    if (t.key === 'demo') t.costUpdated = old;
+    if (t.key === 'millwork') { t.altDomesticMfr = 'Brooklyn Millworks'; t.specifiedMfr = 'Arper'; t.specifiedProduct = 'Desk system'; }
+  }
+  const { id, createdAt, createdBy, updatedAt, updatedBy, ...body } = tpl;
+  assert.equal((await A.call(`/api/templates/${id}`, { method: 'PUT', body })).status, 200);
+  assert.equal((await A.call(`/api/projects/${ctx.project.id}/estimate`, { method: 'POST', body: { templateId: id } })).status, 200);
+
+  assert.equal((await ctx.client.call(`/api/projects/${ctx.project.id}/estimate`)).status, 403);
+  const w = (await A.call(`/api/projects/${ctx.project.id}/estimate`)).json;
+  const demo = w.rows.find(r => r.title === 'Selective demo');
+  assert.equal(demo.staleCost, true);
+  assert.ok(demo.costAgeDays >= 130);
+  assert.equal(w.staleCount, 1);
+  const mw = w.rows.find(r => r.title === 'Reception millwork');
+  assert.equal(mw.hasTariff, true);
+  assert.equal(mw.tariffExposure, '3625.00');
+  assert.equal(mw.altDomesticMfr, 'Brooklyn Millworks');
+
+  let total = toMoney(0), tariff = toMoney(0);
+  for (const r of w.rows) { total = total.plus(r.lineTotal); tariff = tariff.plus(r.tariffExposure); }
+  assert.equal(w.rollup.scopeTotal, toMoneyString(total));
+  assert.equal(w.rollup.tariffTotal, toMoneyString(tariff));
+  assert.equal(w.rollup.contingency, '32000.00');
+  assert.equal(w.rollup.proposedCeiling, toMoneyString(total.plus('32000')));
+});
+
 finish();
