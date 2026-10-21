@@ -93,7 +93,7 @@ export default function BuildingsPage() {
                   <div className="mt-1 text-xs text-muted-foreground">AI: {[...(b.requiredAiStatic || []), ...(b.requiredAiTokens || [])].join(' · ')}</div>
                 </div>
                 <div className="flex gap-2">
-                  {b.unitCount !== undefined && <Button asChild size="sm" variant="outline"><Link href={`/admin/buildings/${b.id}`}>Violations</Link></Button>}
+                  <Button asChild size="sm" variant="outline"><Link href={`/admin/buildings/${b.id}`}>Violations &amp; density</Link></Button>
                   <Button size="sm" variant="ghost" onClick={() => edit(b)}>Edit</Button>
                 </div>
               </CardContent>

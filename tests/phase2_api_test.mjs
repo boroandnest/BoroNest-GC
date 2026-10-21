@@ -740,4 +740,54 @@ await test('T13 migration applied; confidence outside 0–1 rejected by MongoDB;
   assert.ok((await A.call('/api/admin/ai-predictions')).json.predictions.length >= 2);
 });
 
+// ---------------------------------------------------------------- T16 (P3)
+await test('T16 79 open violations across 18 units -> 4.39 over_threshold; client sees it, sub sees none', async () => {
+  const r = await A.call(`/api/buildings/${ctx.building.id}`, { method: 'PUT', body: { unitCount: 18, unitCountVerified: true, unitCountSource: 'HPD registration' } });
+  assert.equal(r.status, 200, r.text);
+  const rows = Array.from({ length: 79 }, (_, i) => ({ hpdId: `HPD-${RUN}-${i}`, class: i % 4 === 0 ? 'C' : 'B', unit: `${1 + (i % 18)}A`, description: 'Peeling paint', issuedOn: '2026-06-01' }));
+  const imp = await A.call(`/api/buildings/${ctx.building.id}/violations`, { method: 'POST', body: rows });
+  assert.equal(imp.status, 201, imp.text);
+  assert.equal(imp.json.inserted, 79);
+  assert.equal((await A.call(`/api/buildings/${ctx.building.id}/violations`, { method: 'POST', body: rows.slice(0, 3) })).json.skipped, 3, 're-import is idempotent');
+
+  const c = await ctx.coiClient.call(`/api/projects/${ctx.coiProject.id}/compliance`);
+  assert.equal(c.status, 200, c.text);
+  assert.equal(c.json.density.density, '4.39');
+  assert.equal(c.json.density.aepStatus, 'over_threshold');
+  assert.equal((await ctx.coiClient.call(`/api/buildings/${ctx.building.id}/violations`)).status, 200);
+  for (const path of [`/api/projects/${ctx.coiProject.id}/compliance`, `/api/buildings/${ctx.building.id}/violations`]) {
+    const s2 = await ctx.coiSub.call(path);
+    assert.equal(s2.status, 404, `${path} ${s2.status}`);
+    assert.ok(!s2.text.includes('density'));
+  }
+  const subProject = await ctx.coiSub.call(`/api/projects/${ctx.coiProject.id}`);
+  assert.ok(!subProject.text.includes('Ana Ruiz') && !subProject.text.includes('718-555'), 'resident PII not sent to subs');
+});
+
+await test('T16 work complete does not change density; only agency closure does; awaiting_closure counts the gap', async () => {
+  const reg = (await A.call(`/api/buildings/${ctx.building.id}/violations`)).json;
+  const five = reg.violations.slice(0, 5);
+  for (const v of five) {
+    for (const step of ['workCompletedAt', 'certifiedFiledAt']) assert.equal((await A.call(`/api/buildings/${ctx.building.id}/violations/${v.id}`, { method: 'PATCH', body: { step } })).status, 200);
+  }
+  assert.equal((await ctx.coiClient.call(`/api/buildings/${ctx.building.id}/violations/${five[0].id}`, { method: 'PATCH', body: { step: 'clientAcceptedAt' } })).status, 200, 'client records acceptance');
+  assert.equal((await ctx.coiClient.call(`/api/buildings/${ctx.building.id}/violations/${five[0].id}`, { method: 'PATCH', body: { step: 'agencyClosedAt' } })).status, 403, 'client cannot close');
+  let d = (await ctx.coiClient.call(`/api/projects/${ctx.coiProject.id}/compliance`)).json.density;
+  assert.equal(d.density, '4.39', 'unchanged by finished work');
+  assert.equal(d.awaitingClosure, 5);
+  for (const v of five.slice(0, 2)) await A.call(`/api/buildings/${ctx.building.id}/violations/${v.id}`, { method: 'PATCH', body: { step: 'agencyClosedAt' } });
+  d = (await ctx.coiClient.call(`/api/projects/${ctx.coiProject.id}/compliance`)).json.density;
+  assert.equal(d.openViolations, 77);
+  assert.equal(d.density, '4.28');
+  assert.equal(d.awaitingClosure, 3);
+});
+
+await test('T16 null unit_count returns unknown, never a computed density', async () => {
+  await A.call(`/api/buildings/${ctx.building.id}`, { method: 'PUT', body: { unitCount: '' } });
+  const d = (await ctx.coiClient.call(`/api/projects/${ctx.coiProject.id}/compliance`)).json.density;
+  assert.equal(d.aepStatus, 'unknown');
+  assert.equal(d.density, null);
+  await A.call(`/api/buildings/${ctx.building.id}`, { method: 'PUT', body: { unitCount: 18, unitCountVerified: true } });
+});
+
 finish();

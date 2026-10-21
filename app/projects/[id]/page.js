@@ -14,6 +14,7 @@ import { Loader2, ArrowLeft, MapPin, DollarSign, Users, Calendar, FileText, Came
 import { motion } from 'framer-motion';
 import { formatMoney, formatQty } from '@/lib/format';
 import CoStatus from '@/components/co-status';
+import DensityCard from '@/components/density-card';
 
 const PHASES = ['Discovery', 'Design', 'Permitting', 'Procurement', 'Construction', 'Punch List', 'Close-Out'];
 
@@ -164,6 +165,7 @@ export default function ProjectHub() {
         </motion.div>
 
         {financials && <ContingencyBar f={financials} />}
+        {(canSeePricing && p.buildingId) && <ProjectDensity projectId={p.id} />}
 
         <Tabs value={tab} onValueChange={setTab} className="mt-8">
           <TabsList className="flex-wrap h-auto">
@@ -269,6 +271,13 @@ export default function ProjectHub() {
       </div>
     </>
   );
+}
+
+function ProjectDensity({ projectId }) {
+  const [d, setD] = useState(null);
+  useEffect(() => { fetch(`/api/projects/${projectId}/compliance`).then(r => r.ok ? r.json() : null).then(setD); }, [projectId]);
+  if (!d?.density) return null;
+  return <div className="mt-6"><DensityCard name={d.building?.name} density={d.density} /></div>;
 }
 
 // Renders server-computed figures only (lib/co/financials.js). The width and colour band come from
