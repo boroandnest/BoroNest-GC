@@ -214,7 +214,7 @@ function FieldRow({ field, value, onChange }) {
             <input id={id} type="file" accept={field.accept || '.pdf,.png,.jpg,.jpeg'} onChange={handleFile} className="hidden" />
             {uploading ? 'Uploading…' : value ? `Uploaded: ${value.split('/').pop()}` : 'Click to upload'}
           </label>
-          {value && <div className="text-xs text-emerald-400">✓ File attached</div>}
+          {value && <div className="text-xs text-forest">✓ File attached</div>}
         </div>
       ) : (
         <Input id={id} type={field.type} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={field.placeholder} />

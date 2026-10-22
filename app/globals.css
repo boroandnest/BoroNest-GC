@@ -2,77 +2,141 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 html, body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 @layer base {
+  /* ─────────────────────────────────────────────────────────────────────────
+     Boro & Nest brand system — PHASE1_BUILD.md §7.
+     Do not introduce new colors. Every semantic token below resolves to one
+     of these five. --bdr is not in §7; it is derived from cream/forest as the
+     neutral the phase stepper's "future" state and every card edge needs.
+     ───────────────────────────────────────────────────────────────────────── */
   :root {
-    /* Boro & Nest — Royal blue + White + Black + Chrome. Dark-mode first. */
-    --background: 220 25% 5%;              /* near-black w/ subtle blue tint */
-    --foreground: 210 30% 97%;             /* near-white */
-    --card: 220 22% 9%;                    /* elevated black */
-    --card-foreground: 210 30% 97%;
-    --popover: 220 22% 9%;
-    --popover-foreground: 210 30% 97%;
-    --primary: 220 92% 58%;                /* royal blue #2563EB */
-    --primary-foreground: 210 30% 98%;
-    --secondary: 220 15% 16%;
-    --secondary-foreground: 210 30% 97%;
-    --muted: 220 15% 14%;
-    --muted-foreground: 215 15% 68%;       /* chrome text */
-    --accent: 215 20% 78%;                 /* chrome silver */
-    --accent-foreground: 220 25% 8%;
-    --destructive: 0 70% 50%;
-    --destructive-foreground: 210 30% 97%;
-    --border: 220 15% 18%;
-    --input: 220 15% 16%;
-    --ring: 220 92% 58%;
-    --chart-1: 220 92% 58%;
-    --chart-2: 210 40% 70%;
-    --chart-3: 200 60% 55%;
-    --chart-4: 230 70% 65%;
-    --chart-5: 215 20% 78%;
-    --radius: 0.65rem;
-    --sidebar-background: 220 25% 7%;
-    --sidebar-foreground: 210 30% 95%;
-    --sidebar-primary: 220 92% 58%;
-    --sidebar-primary-foreground: 210 30% 98%;
-    --sidebar-accent: 220 15% 14%;
-    --sidebar-accent-foreground: 210 30% 97%;
-    --sidebar-border: 220 15% 16%;
-    --sidebar-ring: 220 92% 58%;
+    --forest:   160 24% 19%;    /* #253D35 — primary, headers, nav */
+    --forest-d: 159 24% 11%;    /* #16241F — deep backgrounds */
+    --cream:     36 36% 95%;    /* #F6F2EC — page background */
+    --sand:      39 29% 69%;    /* #C8B89A — accent, CTAs, data highlights */
+    --alert:     12 62% 56%;    /* #D4654A — ONLY genuine problems */
+    --bdr:       36 18% 85%;    /* derived neutral edge */
+
+    /* Readable ink for small text in a sand/alert chip. §7's palette was
+       written for a dark surface; on cream, --sand as text is ~2:1 and fails
+       contrast. These are shades of the same two hues, not new colors — the
+       chip keeps the brand tint as its background and darkens only the text,
+       which is the pattern the reference screens use. */
+    --sand-ink:  39 42% 30%;
+    --alert-ink: 12 68% 38%;
+
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-body:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    /* Semantic tokens — shadcn surface. Light (cream) is the default per §7. */
+    --background: var(--cream);
+    --foreground: var(--forest);
+    --card: 36 40% 98%;
+    --card-foreground: var(--forest);
+    --popover: 36 40% 98%;
+    --popover-foreground: var(--forest);
+    --primary: var(--forest);
+    --primary-foreground: var(--cream);
+    --secondary: 36 24% 90%;
+    --secondary-foreground: var(--forest);
+    --muted: 36 20% 91%;
+    --muted-foreground: 160 12% 34%;
+    --accent: var(--sand);
+    --accent-foreground: var(--forest);
+    --destructive: var(--alert);
+    --destructive-foreground: var(--cream);
+    --border: var(--bdr);
+    --input: 36 18% 88%;
+    --ring: var(--sand);
+    --chart-1: var(--forest);
+    --chart-2: var(--sand);
+    --chart-3: 160 20% 32%;
+    --chart-4: 39 24% 80%;
+    --chart-5: var(--alert);
+    --radius: 0.75rem;
+    --sidebar-background: var(--forest);
+    --sidebar-foreground: var(--cream);
+    --sidebar-primary: var(--sand);
+    --sidebar-primary-foreground: var(--forest);
+    --sidebar-accent: 160 22% 24%;
+    --sidebar-accent-foreground: var(--cream);
+    --sidebar-border: 160 20% 26%;
+    --sidebar-ring: var(--sand);
   }
-  .light {
-    --background: 0 0% 100%;
-    --foreground: 220 25% 8%;
-    --card: 210 20% 99%;
-    --card-foreground: 220 25% 8%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 25% 8%;
-    --primary: 220 90% 48%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 15% 96%;
-    --secondary-foreground: 220 25% 10%;
-    --muted: 210 15% 95%;
-    --muted-foreground: 220 10% 42%;
-    --accent: 215 20% 62%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 45%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 210 15% 88%;
-    --input: 210 15% 92%;
-    --ring: 220 90% 48%;
+
+  /* Deep forest surface. Same five colors, inverted. */
+  .dark {
+    --background: var(--forest-d);
+    --foreground: var(--cream);
+    --card: 160 22% 15%;
+    --card-foreground: var(--cream);
+    --popover: 160 22% 15%;
+    --popover-foreground: var(--cream);
+    --primary: var(--sand);
+    --primary-foreground: var(--forest-d);
+    --secondary: 160 20% 20%;
+    --secondary-foreground: var(--cream);
+    --muted: 160 18% 19%;
+    --muted-foreground: 39 14% 68%;
+    --accent: var(--sand);
+    --accent-foreground: var(--forest-d);
+    --destructive: var(--alert);
+    --destructive-foreground: var(--cream);
+    --border: 160 18% 24%;
+    --input: 160 18% 22%;
+    --ring: var(--sand);
   }
 }
 
 @layer base {
   * { @apply border-border; }
   body { @apply bg-background text-foreground; }
+
+  /* §7: Playfair is for headlines and big numbers, ≥18px only. */
+  h1, h2, h3 { font-family: var(--font-display); }
+}
+
+@layer components {
+  /* §7 mono rules: uppercase, 1–2.6px tracking, 9–11px. Section labels,
+     project codes (BN-0042), phase names, dollar figures in tables, buttons. */
+  .label-mono {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1.4;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  /* Codes and figures: mono, but readable size and not uppercased. */
+  .data-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  /* §7: big numbers are display type. Never below 18px. */
+  .display-figure {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  /* §7: Ask Nest nav pill. */
+  .nest-pill {
+    background: hsl(var(--sand) / 0.11);
+    border: 1px solid hsl(var(--sand) / 0.38);
+    border-radius: 20px;
+    color: hsl(var(--sand));
+  }
 }
 
 /* Custom utilities */
@@ -86,26 +150,39 @@ html, body {
 .bg-radial-fade {
   background: radial-gradient(ellipse at center, transparent 0%, hsl(var(--background)) 70%);
 }
+.text-gradient-forest {
+  background: linear-gradient(135deg, hsl(var(--forest)) 0%, hsl(160 26% 23%) 45%, hsl(var(--forest-d)) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.text-gradient-sand {
+  background: linear-gradient(135deg, hsl(var(--sand-ink)) 0%, hsl(39 38% 38%) 50%, hsl(var(--forest)) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+/* Pre-§7 names kept so the marketing pages keep rendering; they now resolve
+   to brand colors. Prefer the -forest / -sand names in new work. */
 .text-gradient-royal {
-  background: linear-gradient(135deg, #93B4FF 0%, #2563EB 45%, #1D4ED8 100%);
+  background: linear-gradient(135deg, hsl(var(--forest)) 0%, hsl(160 26% 23%) 45%, hsl(var(--forest-d)) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 .text-gradient-chrome {
-  background: linear-gradient(135deg, #F5F7FA 0%, #C0C7D2 50%, #7B8494 100%);
+  background: linear-gradient(135deg, hsl(var(--sand-ink)) 0%, hsl(39 38% 38%) 50%, hsl(var(--forest)) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 .glass-card {
-  background: hsl(var(--card) / 0.7);
+  background: hsl(var(--card) / 0.72);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 .chrome-border {
-  border: 1px solid;
-  border-image: linear-gradient(135deg, hsl(215 20% 60%), hsl(215 20% 25%), hsl(215 20% 60%)) 1;
+  border: 1px solid hsl(var(--sand) / 0.45);
 }
 
 /* Scrollbar */

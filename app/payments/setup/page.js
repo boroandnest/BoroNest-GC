@@ -43,7 +43,7 @@ export default function PaymentsSetup() {
             {!s ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : !s.configured ? (
               <p className="text-sm text-muted-foreground">Online payouts are being set up. Boro &amp; Nest will contact you to arrange payment in the meantime.</p>
             ) : s.payoutsEnabled ? (
-              <div className="flex items-center gap-3"><ShieldCheck className="h-6 w-6 text-emerald-400" /><div><div className="font-medium">Payouts are active</div><div className="text-sm text-muted-foreground">Released milestones are transferred to your Stripe account.</div></div></div>
+              <div className="flex items-center gap-3"><ShieldCheck className="h-6 w-6 text-forest" /><div><div className="font-medium">Payouts are active</div><div className="text-sm text-muted-foreground">Released milestones are transferred to your Stripe account.</div></div></div>
             ) : (
               <div className="space-y-3">
                 <p className="text-sm">{s.hasAccount ? (s.detailsSubmitted ? 'Stripe is reviewing your details. This page updates once payouts are enabled.' : 'Finish your Stripe setup to start receiving payments.') : 'Set up payouts once; every released milestone is paid automatically.'}</p>

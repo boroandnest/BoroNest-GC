@@ -216,7 +216,7 @@ export default function ProjectHub() {
                 {milestones.map(m => (
                   <div key={m.id} className="flex items-center justify-between rounded-lg border border-border bg-background p-4">
                     <div className="flex items-center gap-3">
-                      {m.status === 'complete' ? <CheckCircle2 className="h-5 w-5 text-emerald-400" /> : m.status === 'in_progress' ? <Clock className="h-5 w-5 text-primary animate-pulse" /> : <Circle className="h-5 w-5 text-muted-foreground" />}
+                      {m.status === 'complete' ? <CheckCircle2 className="h-5 w-5 text-forest" /> : m.status === 'in_progress' ? <Clock className="h-5 w-5 text-primary animate-pulse" /> : <Circle className="h-5 w-5 text-muted-foreground" />}
                       <div>
                         <div className="text-sm font-medium">{m.title || m.name}</div>
                         <div className="text-xs text-muted-foreground">{[m.phase || m.trigger, m.dueDate ? `Due ${new Date(m.dueDate).toLocaleDateString()}` : null, m.inDisputeWindow ? `Payment releases ${new Date(m.releaseEta).toLocaleString()}` : null].filter(Boolean).join(' · ')}</div>
@@ -231,7 +231,7 @@ export default function ProjectHub() {
                       )}
                       {isStaff && m.status !== 'complete' && <Button size="sm" variant="outline" onClick={() => verifyMilestone(m.id)}>Verify</Button>}
                       {m.canDispute && (viewerRole === 'client' || viewerRole === 'management') && <Button size="sm" variant="outline" onClick={() => disputeMilestone(m.id)}>Dispute</Button>}
-                      {m.releaseStatus === 'disputed' && <span className="text-xs text-[#D4654A]">Disputed</span>}
+                      {m.releaseStatus === 'disputed' && <span className="text-xs text-alert-ink">Disputed</span>}
                     </div>
                   </div>
                 ))}
@@ -283,7 +283,7 @@ function ProjectDensity({ projectId }) {
 
 // Renders server-computed figures only (lib/co/financials.js). The width and colour band come from
 // the API; this component does no arithmetic.
-const BAND = { forest: '#253D35', sand: '#C8B89A', alert: '#D4654A' };
+const BAND = { forest: 'hsl(var(--forest))', sand: 'hsl(var(--sand))', alert: 'hsl(var(--alert))' };
 function ContingencyBar({ f }) {
   return (
     <div className="mt-6 rounded-2xl border border-border bg-card p-5">
@@ -340,7 +340,7 @@ function BudgetView({ project: p, projectId }) {
       <div className="grid gap-4 md:grid-cols-4">
         <Card><CardContent className="p-5"><div className="text-xs uppercase tracking-widest text-muted-foreground">GMP Ceiling</div><div className="mt-2 text-2xl font-bold text-primary">${gmp.toLocaleString()}</div></CardContent></Card>
         <Card><CardContent className="p-5"><div className="text-xs uppercase tracking-widest text-muted-foreground">Actual Spend</div><div className="mt-2 text-2xl font-bold">${spent.toLocaleString()}</div><div className="mt-1 text-xs text-muted-foreground">{pct}% of ceiling</div></CardContent></Card>
-        <Card><CardContent className="p-5"><div className="text-xs uppercase tracking-widest text-muted-foreground">Remaining Under Ceiling</div><div className="mt-2 text-2xl font-bold text-emerald-400">${remaining.toLocaleString()}</div></CardContent></Card>
+        <Card><CardContent className="p-5"><div className="text-xs uppercase tracking-widest text-muted-foreground">Remaining Under Ceiling</div><div className="mt-2 text-2xl font-bold text-forest">${remaining.toLocaleString()}</div></CardContent></Card>
         <Card><CardContent className="p-5"><div className="text-xs uppercase tracking-widest text-muted-foreground">Contingency</div><div className="mt-2 text-2xl font-bold">${(p.contingency || 0).toLocaleString()}</div></CardContent></Card>
       </div>
 
@@ -462,7 +462,7 @@ function ScopeView({ projectId, isStaff, parties = [] }) {
                         <td className="py-3 text-right font-mono">{formatMoney(l.unitCost)}</td>
                         <td className="py-3 text-right font-mono">{formatMoney(l.lineTotal)}{l.tariffExposure && l.tariffExposure !== '0.00' ? <div className="text-[10px] text-muted-foreground">incl. tariff {formatMoney(l.tariffExposure)}</div> : null}</td>
                       </>}
-                      <td className="py-3 pl-3 text-xs uppercase tracking-wider text-muted-foreground">{(l.status || '').replace('_', ' ')}{(l.blocked || l.openBlocks?.length) ? <div className="normal-case tracking-normal text-[#C8B89A]">Blocked by unsigned CO</div> : null}{l.coiLapsed ? <div className="normal-case tracking-normal text-[#D4654A]">COI lapsed</div> : null}</td>
+                      <td className="py-3 pl-3 text-xs uppercase tracking-wider text-muted-foreground">{(l.status || '').replace('_', ' ')}{(l.blocked || l.openBlocks?.length) ? <div className="normal-case tracking-normal text-sand-ink">Blocked by unsigned CO</div> : null}{l.coiLapsed ? <div className="normal-case tracking-normal text-alert-ink">COI lapsed</div> : null}</td>
                       {isStaff && <td className="py-3 pl-3"><select value={l.assignedSub || ''} onChange={e => assign(l.id, e.target.value)} className="max-w-[160px] rounded-md border border-border bg-background px-2 py-1 text-xs" aria-label="Assigned subcontractor"><option value="">—</option>{subs.map(u => <option key={u.id} value={u.id}>{u.company || u.name || u.email}</option>)}{l.assignedSub && !subs.some(u => u.id === l.assignedSub) && <option value={l.assignedSub}>{l.assignedSubName || 'Assigned'}</option>}</select></td>}
                       {isStaff && <td className="py-3 text-right"><button onClick={() => removeLine(l.id)} className="rounded-md p-1.5 text-muted-foreground hover:text-destructive" aria-label="Delete line"><Trash2 className="h-3.5 w-3.5" /></button></td>}
                     </tr>
@@ -776,9 +776,9 @@ function TeamView({ projectId, parties, clientEmail, pmName, pmEmail, canInvite,
 
 function StatusPill({ status }) {
   const map = {
-    accepted: 'bg-emerald-500/15 text-emerald-400',
-    pending: 'bg-yellow-500/15 text-yellow-400',
-    declined: 'bg-red-500/15 text-red-400'
+    accepted: 'bg-forest/10 text-forest',
+    pending: 'bg-sand/25 text-sand-ink',
+    declined: 'bg-alert/12 text-alert-ink'
   };
   return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${map[status] || 'bg-muted'}`}>{status}</span>;
 }

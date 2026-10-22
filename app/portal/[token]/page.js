@@ -106,7 +106,7 @@ export default function BoardPortal() {
             <div className="space-y-2">
               {milestones.map(m => (
                 <div key={m.id} className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
-                  {m.status === 'complete' ? <CheckCircle2 className="h-4 w-4 text-emerald-400" /> : m.status === 'in_progress' ? <Clock className="h-4 w-4 text-primary animate-pulse" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
+                  {m.status === 'complete' ? <CheckCircle2 className="h-4 w-4 text-forest" /> : m.status === 'in_progress' ? <Clock className="h-4 w-4 text-primary animate-pulse" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
                   <div className="flex-1">
                     <div className="text-sm font-medium">{m.name}</div>
                     <div className="text-xs text-muted-foreground">{m.phase} · Due {new Date(m.dueDate).toLocaleDateString()}</div>
@@ -165,7 +165,7 @@ export default function BoardPortal() {
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-semibold text-primary">{formatMoney(co.costDelta)}</div>
-                    <div className="text-[10px] uppercase text-emerald-400">Signed</div>
+                    <div className="text-[10px] uppercase text-forest">Signed</div>
                   </div>
                 </div>
               ))}

@@ -193,7 +193,7 @@ function Stat({ label, value, icon: Icon, alert }) {
     <Card>
       <CardContent className="p-5">
         <div className="flex items-center justify-between"><span className="text-xs uppercase tracking-widest text-muted-foreground">{label}</span><Icon className="h-4 w-4 text-primary" /></div>
-        <div className={`mt-2 text-3xl font-bold ${alert ? 'text-[#D4654A]' : ''}`}>{value}</div>
+        <div className={`mt-2 text-3xl font-bold ${alert ? 'text-alert-ink' : ''}`}>{value}</div>
       </CardContent>
     </Card>
   );

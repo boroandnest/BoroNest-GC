@@ -12,14 +12,16 @@ import { motion } from 'framer-motion';
 import { Loader2, ArrowRight, Building2, Calendar, DollarSign, FileText, Hammer, ShieldCheck, AlertTriangle, TrendingUp, Users, MapPin, Wrench, Clock3, ClipboardCheck, MessageSquare, Mail } from 'lucide-react';
 import { ROLE_LABELS } from '@/lib/api-helpers';
 
+// §7: a phase is shown by its state, not by a hue of its own. Early phases read
+// as in-flight (sand), build phases as active (forest), close-out as done.
 const PHASE_COLORS = {
-  'Discovery': 'bg-blue-500/15 text-blue-400',
-  'Design': 'bg-purple-500/15 text-purple-400',
-  'Permitting': 'bg-yellow-500/15 text-yellow-400',
-  'Procurement': 'bg-orange-500/15 text-orange-400',
-  'Construction': 'bg-primary/15 text-primary',
-  'Punch List': 'bg-green-500/15 text-green-400',
-  'Close-Out': 'bg-emerald-500/15 text-emerald-400'
+  'Discovery': 'bg-sand/25 text-sand-ink',
+  'Design': 'bg-sand/25 text-sand-ink',
+  'Permitting': 'bg-sand/25 text-sand-ink',
+  'Procurement': 'bg-sand/25 text-sand-ink',
+  'Construction': 'bg-forest/10 text-forest',
+  'Punch List': 'bg-forest/10 text-forest',
+  'Close-Out': 'bg-forest text-cream'
 };
 
 export default function RoleDashboard() {
@@ -125,7 +127,7 @@ function RoleActions({ role, user }) {
 }
 
 function StatCard({ icon: Icon, label, value, sub, tone = 'default' }) {
-  const tones = { default: 'text-foreground', primary: 'text-primary', danger: 'text-red-400', success: 'text-emerald-400' };
+  const tones = { default: 'text-foreground', primary: 'text-primary', danger: 'text-alert-ink', success: 'text-forest' };
   return (
     <Card>
       <CardContent className="p-5">
@@ -308,7 +310,7 @@ function ManagementView({ projects, user, totalGmp, totalSpend, avgProgress }) {
 }
 
 function TierBadge({ tier }) {
-  const map = { Platinum: 'bg-primary/15 text-primary', Gold: 'bg-yellow-500/15 text-yellow-400', 'Pending Review': 'bg-muted text-muted-foreground' };
+  const map = { Platinum: 'bg-primary/15 text-primary', Gold: 'bg-sand/25 text-sand-ink', 'Pending Review': 'bg-muted text-muted-foreground' };
   return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${map[tier] || 'bg-muted'}`}>{tier}</span>;
 }
 
@@ -362,7 +364,7 @@ function BuildingRepView({ projects, user }) {
                     <Button size="sm" variant="outline">Deny</Button>
                     <Button size="sm">Approve</Button>
                   </div>
-                ) : <span className="text-xs rounded-full bg-emerald-500/15 px-2 py-1 text-emerald-400">{a.status}</span>}
+                ) : <span className="text-xs rounded-full bg-forest/10 px-2 py-1 text-forest">{a.status}</span>}
               </div>
             ))}
           </CardContent>
@@ -461,7 +463,7 @@ function ExpediterView({ projects, user }) {
 }
 
 function FilingBadge({ status }) {
-  const map = { 'Submitted': 'bg-blue-500/15 text-blue-400', 'In Review': 'bg-yellow-500/15 text-yellow-400', 'Approved': 'bg-emerald-500/15 text-emerald-400', 'Issued': 'bg-primary/15 text-primary' };
+  const map = { 'Submitted': 'bg-muted text-muted-foreground', 'In Review': 'bg-sand/25 text-sand-ink', 'Approved': 'bg-forest/10 text-forest', 'Issued': 'bg-primary/15 text-primary' };
   return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${map[status] || 'bg-muted'}`}>{status}</span>;
 }
 
@@ -487,8 +489,8 @@ function SubcontractorView({ projects, user }) {
   return (
     <div className="space-y-6">
       {insuranceWarn && (
-        <div className="flex items-center gap-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-yellow-400" />
+        <div className="flex items-center gap-3 rounded-lg border border-sand bg-sand/20 p-4">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-sand-ink" />
           <div className="text-sm"><strong>Insurance expiring in {daysUntilExpire} days.</strong> Renew to keep Platinum tier and bid access.</div>
           <Button size="sm" variant="outline" className="ml-auto">Upload renewal</Button>
         </div>
@@ -560,7 +562,7 @@ function SubcontractorView({ projects, user }) {
 }
 
 function PaymentDot({ status }) {
-  const map = { complete: 'bg-emerald-400', awaiting_confirmation: 'bg-yellow-400', in_progress: 'bg-primary', upcoming: 'bg-muted', not_started: 'bg-muted' };
+  const map = { complete: 'bg-forest', awaiting_confirmation: 'bg-sand', in_progress: 'bg-primary', upcoming: 'bg-muted', not_started: 'bg-muted' };
   return <div className={`h-2.5 w-2.5 rounded-full ${map[status] || 'bg-muted'} ${status === 'in_progress' ? 'animate-pulse' : ''}`} />;
 }
 function paymentLabel(s) {

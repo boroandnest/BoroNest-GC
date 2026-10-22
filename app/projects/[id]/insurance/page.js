@@ -115,7 +115,7 @@ function CoiRow({ c, projectId }) {
       <div>
         <div className="font-medium">{c.holder ? (c.holder.company || c.holder.name) : 'Certificate'} · expires {c.expiresOn}</div>
         <div className="text-xs text-muted-foreground">Submitted {new Date(c.submittedAt).toLocaleDateString()} · GL {formatMoney(c.glLimit, { cents: false })}{c.wcPresent ? ' · WC' : ''}</div>
-        {c.compliance && !c.compliance.ok && <div className="mt-1 text-xs text-[#D4654A]">{c.chip.label}{c.compliance.missingAi?.length ? ` — missing: ${c.compliance.missingAi.join('; ')}` : ''}</div>}
+        {c.compliance && !c.compliance.ok && <div className="mt-1 text-xs text-alert-ink">{c.chip.label}{c.compliance.missingAi?.length ? ` — missing: ${c.compliance.missingAi.join('; ')}` : ''}</div>}
       </div>
       <div className="flex items-center gap-2"><CoiChip chip={c.chip} />{c.hasFile && <Button size="sm" variant="ghost" onClick={open}>View</Button>}</div>
     </div>

@@ -67,7 +67,7 @@ export default function BillingPage() {
                       <td className="p-3 text-right font-mono">{formatMoney(p.baseAmount)}</td>
                       <td className="p-3 text-right font-mono">{p.creditApplied !== '0.00' ? `−${formatMoney(p.creditApplied)}` : '—'}</td>
                       <td className="p-3 text-right font-mono font-semibold">{formatMoney(p.amount)}</td>
-                      <td className="p-3 text-xs">{!r.guaranteeKind ? '—' : p.deliverablesMet === true ? <span className="text-emerald-400">Met</span> : p.deliverablesMet === false ? <span className="text-[#D4654A]">Not met — credit applied</span> : <span className="text-muted-foreground">Pending</span>}</td>
+                      <td className="p-3 text-xs">{!r.guaranteeKind ? '—' : p.deliverablesMet === true ? <span className="text-forest">Met</span> : p.deliverablesMet === false ? <span className="text-alert-ink">Not met — credit applied</span> : <span className="text-muted-foreground">Pending</span>}</td>
                       <td className="p-3 text-xs">{PERIOD_STATUS[p.status]}</td>
                       {staff && (
                         <td className="p-3 text-right whitespace-nowrap">

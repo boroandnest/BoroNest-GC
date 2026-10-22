@@ -90,7 +90,7 @@ export default function ChangePage() {
         </Card>
 
         {co.canSign && (
-          <Card className="mt-6 border-[#C8B89A]/50">
+          <Card className="mt-6 border-sand">
             <CardContent className="p-6">
               <form onSubmit={sign} className="space-y-4">
                 <p className="text-sm">By typing your full name you approve this change{co.costDelta !== undefined && !co.noCostToYou ? ` and its cost of ${formatMoney(co.costDelta)}` : ''}. Your name, the time and your connection's IP address are recorded.</p>

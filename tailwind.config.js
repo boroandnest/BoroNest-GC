@@ -17,7 +17,30 @@ module.exports = {
         }
       },
       extend: {
+        fontFamily: {
+          display: ['var(--font-display)'],
+          sans: ['var(--font-body)'],
+          mono: ['var(--font-mono)']
+        },
         colors: {
+          /* PHASE1_BUILD.md §7 — the only five. Semantic tokens below resolve
+             to these; use the brand names when a figure must be a specific
+             brand color (a rule verdict, a phase state), the semantic names
+             otherwise. --alert is for genuine problems only, never decoration. */
+          forest: {
+            DEFAULT: 'hsl(var(--forest))',
+            deep: 'hsl(var(--forest-d))'
+          },
+          cream: 'hsl(var(--cream))',
+          sand: {
+            DEFAULT: 'hsl(var(--sand))',
+            ink: 'hsl(var(--sand-ink))'
+          },
+          alert: {
+            DEFAULT: 'hsl(var(--alert))',
+            ink: 'hsl(var(--alert-ink))'
+          },
+          bdr: 'hsl(var(--bdr))',
           border: 'hsl(var(--border))',
           input: 'hsl(var(--input))',
           ring: 'hsl(var(--ring))',
