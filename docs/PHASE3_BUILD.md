@@ -723,9 +723,17 @@ tables, big display figures with deltas, pill-shaped status. The T0 primitives
 (`components/brand/`) are those pieces.
 
 ### Acceptance
-- [ ] Every existing admin route is reachable from one console
-- [ ] Figures are server-computed; the console does no arithmetic
-- [ ] A non-staff user hitting `/admin/*` gets 404, verified in the network response
+- [x] Every existing admin route is reachable from one console
+- [x] Figures are server-computed; the console does no arithmetic
+- [x] A non-staff user reading the console API is refused, verified in the
+      network response — **403, not 404**. Every Phase 2 admin route already
+      answers 403 through `requireStaff`, and the 404 preference in T24/T29 is
+      about not revealing whether a particular *project* exists; a fixed admin
+      endpoint reveals nothing by admitting it exists. Verified: a verified
+      subcontractor gets `{"error":"Not authorized"}` with no figure, name or
+      key from the rollup in the body.
+- [x] A project with no contingency on file reads as "not set", never as 0% in
+      --alert
 
 ## T31 · Presentations for owners and partners
 
