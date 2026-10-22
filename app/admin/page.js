@@ -15,14 +15,18 @@ import { ROLE_LABELS } from '@/lib/api-helpers';
 import { formatMoney } from '@/lib/format';
 import Pill from '@/components/brand/pill';
 import { Figure, SectionLabel } from '@/components/brand/stat';
+import { BentoGrid, BentoTile } from '@/components/brand/bento';
+import { AreaTrend } from '@/components/brand/chart';
+import { MonthlyObligations } from '@/components/brand/heatmap';
+import { VerticalMenu, EmptyState, AvatarStack } from '@/components/brand/menu';
 
 const BOROUGHS = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island'];
 
 // Everything a staff user can reach. One list so a new area is added once.
 const AREAS = [
-  { href: '/admin/templates', label: 'Scope templates', note: 'Parametric templates and tasks' },
-  { href: '/admin/insurance', label: 'Insurance queue', note: 'Verify certificates against building requirements' },
-  { href: '/admin/buildings', label: 'Buildings', note: 'Requirements, unit counts, violation registers' }
+  { href: '/admin/templates', label: 'Scope templates' },
+  { href: '/admin/insurance', label: 'Insurance queue', countKey: 'coisPending' },
+  { href: '/admin/buildings', label: 'Buildings', countKey: 'buildings' }
 ];
 
 // The console renders figures; it never computes them. Every number below
@@ -99,31 +103,74 @@ export default function AdminPage() {
                 : <>Nothing needs action right now.</>
               : null}
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {AREAS.map(a => <Button key={a.href} asChild size="sm" variant="outline"><Link href={a.href}>{a.label}</Link></Button>)}
-          </div>
+          <VerticalMenu
+            orientation="horizontal"
+            className="mt-3"
+            items={AREAS.map(a => ({
+              ...a,
+              count: a.countKey && data?.totals ? data.totals[a.countKey] || null : null,
+              tone: a.countKey === 'coisPending' ? 'warn' : 'neutral'
+            }))}
+          />
         </div>
 
         {data && <Attention items={data.attention} />}
 
         {t && (
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Tile label="Projects" value={t.activeProjects} />
-            <Tile label="GMP under management" value={formatMoney(t.gmpUnderManagement, { cents: false })} />
-            <Tile label="Contingency remaining" value={formatMoney(t.contingencyRemaining, { cents: false })} />
-            <Tile label="Buildings" value={t.buildings} />
-            <Tile label="Open violations" value={t.openViolations}
-              foot={t.awaitingClosure ? `${t.awaitingClosure} awaiting HPD closure` : null} />
-            <Tile label="Certificates expiring" value={t.coisExpiring}
-              tone={t.coisExpired ? 'problem' : t.coisExpiring ? 'warn' : null}
+          // Bento: span and tone carry weight, not a hue per tile. The two
+          // money tiles are the screen's subject, so they are the filled ones.
+          <BentoGrid className="mt-8">
+            <BentoTile tone="forest" span={2} label="GMP under management"
+              value={formatMoney(t.gmpUnderManagement, { cents: false })}
+              foot={`across ${t.activeProjects} project${t.activeProjects === 1 ? '' : 's'}`} />
+            <BentoTile tone="sand" label="Contingency remaining"
+              value={formatMoney(t.contingencyRemaining, { cents: false })} />
+            <BentoTile label="Buildings" value={t.buildings} />
+            <BentoTile label="Open violations" value={t.openViolations}
+              badge={t.awaitingClosure ? `${t.awaitingClosure} awaiting` : null}
+              foot={t.awaitingClosure ? 'fixed, not yet closed by HPD' : null} />
+            <BentoTile tone={t.coisExpired ? 'alert' : t.coisExpiring ? 'sand' : 'plain'}
+              label="Certificates expiring" value={t.coisExpiring}
               foot={t.coisExpired ? `${t.coisExpired} not compliant` : null} />
-            <Tile label="Milestones awaiting" value={t.milestonesAwaiting}
-              tone={t.milestonesFailed || t.milestonesDisputed ? 'problem' : null}
+            <BentoTile tone={t.milestonesFailed || t.milestonesDisputed ? 'alert' : 'plain'}
+              label="Milestones awaiting" value={t.milestonesAwaiting}
               foot={t.milestonesFailed || t.milestonesDisputed ? `${t.milestonesFailed} failed · ${t.milestonesDisputed} disputed` : null} />
-            <Tile label="Accounts to approve" value={t.pendingUsers} tone={t.pendingUsers ? 'warn' : null}
+            <BentoTile label="Accounts to approve" value={t.pendingUsers}
               foot={t.scopingCalls ? `${t.scopingCalls} scoping calls on file` : null} />
-          </div>
+          </BentoGrid>
         )}
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-5 [&>*]:min-w-0">
+          <Card className="lg:col-span-3">
+            <CardHeader>
+              <CardTitle className="text-base">Open violations</CardTitle>
+              <CardDescription>
+                Counted from the HPD issue date, so entering a backlog late cannot invent a drop.
+                No AEP line is drawn: the threshold is per building, not per portfolio.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AreaTrend
+                data={data?.trend || []}
+                series={[
+                  { key: 'open', label: 'Open', tone: 'forest' },
+                  { key: 'awaiting', label: 'Awaiting HPD closure', tone: 'sand' }
+                ]}
+                empty="No violations on file yet."
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-base">Dated obligations</CardTitle>
+              <CardDescription>Certificates, correct-by dates, releases and retainer periods. Tap a day.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {data?.calendar && <MonthlyObligations month={data.calendar.month} days={data.calendar.days} />}
+            </CardContent>
+          </Card>
+        </div>
 
         <Card className="mt-8">
           <CardHeader><CardTitle className="text-base">Projects</CardTitle><CardDescription>Ceiling and contingency as the server computes them.</CardDescription></CardHeader>
@@ -178,17 +225,23 @@ export default function AdminPage() {
           </CardContent>
         </Card>
 
-        <div className="mt-8 grid gap-6 md:grid-cols-2">
+        <div className="mt-8 grid gap-6 md:grid-cols-2 [&>*]:min-w-0">
           <Card>
             <CardHeader><CardTitle className="text-base">Pending verification</CardTitle><CardDescription>Expediters and subcontractors wait here until approved.</CardDescription></CardHeader>
             <CardContent className="space-y-2">
-              {pending.length === 0 && <div className="text-sm text-muted-foreground">No applications waiting.</div>}
+              {pending.length === 0 && (
+                <EmptyState
+                  media={<AvatarStack people={(data?.recentParties || []).length ? data.recentParties : [{ name: 'B' }, { name: 'N' }]} />}
+                  title="Nobody waiting"
+                  description="Expediters and subcontractors appear here when they apply, and cannot sign in until approved."
+                />
+              )}
               {pending.map(u => (
                 <div key={u.id} className="rounded-lg border border-border p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm font-medium">{u.company || u.name || u.email}</div>
-                      <div className="text-xs text-muted-foreground">{ROLE_LABELS[u.role] || u.role} · {u.email} · {u.phone}</div>
+                      <div className="break-words text-xs text-muted-foreground">{ROLE_LABELS[u.role] || u.role} · {u.email} · {u.phone}</div>
                       <div className="mt-1 text-xs text-muted-foreground">
                         {u.profile?.trades && <>Trades: {u.profile.trades} · </>}
                         {(u.profile?.license || u.profile?.licenses) && <>License: {u.profile.license || u.profile.licenses}</>}
@@ -238,7 +291,7 @@ export default function AdminPage() {
           </Card>
         </div>
 
-        <div className="mt-8 grid gap-6 md:grid-cols-2">
+        <div className="mt-8 grid gap-6 md:grid-cols-2 [&>*]:min-w-0">
           <Card>
             <CardHeader><CardTitle className="text-base">Scoping call requests</CardTitle><CardDescription>Leads from the site. There is no handled flag yet, so these are listed rather than chased.</CardDescription></CardHeader>
             <CardContent className="space-y-2">
@@ -246,7 +299,7 @@ export default function AdminPage() {
               {calls.slice(0, 20).map(c => (
                 <div key={c.id} className="rounded-lg border border-border p-3 text-sm">
                   <div className="font-medium">{c.fullName} <span className="text-xs text-muted-foreground">· {new Date(c.createdAt).toLocaleDateString()}</span></div>
-                  <div className="text-xs text-muted-foreground">{[c.email, c.phone, c.address, c.budget].filter(Boolean).join(' · ')}</div>
+                  <div className="break-words text-xs text-muted-foreground">{[c.email, c.phone, c.address, c.budget].filter(Boolean).join(' · ')}</div>
                   {c.notes && <div className="mt-1 text-xs text-muted-foreground">{c.notes}</div>}
                 </div>
               ))}

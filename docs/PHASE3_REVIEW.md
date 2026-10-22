@@ -278,3 +278,62 @@ exists because of exactly that class of change. Costs nothing now; costs real wo
 `lib/dates.js` still has no holiday calendar (documented Phase 2 gap). T23's `board_lead_days` is
 calendar days so it's unaffected, but if any statutory deadline turns out to be business days, that
 gap becomes real. Flagging it now rather than discovering it in T21.
+
+---
+
+## 6. The reference components (owner's prompt pack, 2026-10-22)
+
+Ten 21st.dev components were supplied as TypeScript/shadcn integration prompts.
+The codebase is **JavaScript**, so none were copied verbatim; the useful ones
+were rebuilt brand-native. Everything needed was already installed — recharts,
+framer-motion, date-fns, embla, the Radix primitives — so **no new dependency
+was added**.
+
+### Adopted (rebuilt in JS, §7 palette, responsive)
+
+| Reference | Built as | Where |
+|---|---|---|
+| `feature-bento` + the Analytics Bento screenshot | `components/brand/bento.js` | console tiles |
+| `stats-2` + the delta rows | `components/brand/stat.js` (T0) | console, tables |
+| Area Charts 2 screenshot | `components/brand/chart.js` | open-violation trend |
+| `monthly-heatmap-calendar` | `components/brand/heatmap.js` | dated obligations |
+| `menu-vertical` | `components/brand/menu.js` | admin area nav |
+| `invite-member-card` | `EmptyState` + `AvatarStack` in `menu.js` | empty approvals queue |
+
+**Palette, not layout, is where the references were declined.** The Analytics
+Bento uses a different hue per tile (purple / green / orange / grey). §7 says
+"do not introduce new colors", and on a console whose entire job is showing
+what is wrong, a tile coloured for liveliness competes with a tile coloured
+because something failed. Weight is carried by **tone and span** instead, so
+`--alert` still means a problem. Same reasoning as §D2.
+
+The reference heatmap shades cells by volume. Volume is not the question here;
+severity is. A cell takes the **worst severity falling on that day**, decided
+server-side, so the calendar cannot invent an alert the attention list does not
+also show.
+
+### Declined
+
+- **`auth-switch`** — a sign-in/sign-up slider with Google/Facebook/X/LinkedIn
+  buttons. It contradicts the Phase 1 security model on three counts: staff
+  authenticate by password and everyone else by one-time emailed link, there is
+  no self-serve signup (expediters and subs are approved by staff), and no
+  OAuth provider is configured. Wiring it up would reintroduce exactly the
+  "anyone can sign up as anyone" hole Phase 1 closed. It is also a hard-coded
+  purple gradient at `100vh`.
+- **Marketing blocks** (`feature-with-image-carousel`, `how-it-works-01`) —
+  fine components, but they belong to the public site, not a dashboard. Worth
+  revisiting when the marketing pages get their §7 pass.
+
+### Deferred, needs an owner decision
+
+- **`interactive-map`** (Leaflet). Genuinely useful for a building portfolio,
+  but it is the one item with real costs: three new dependencies
+  (`leaflet`, `react-leaflet`, `react-leaflet-cluster`), marker images pulled
+  from third-party CDNs, and address search that **sends the address to
+  OpenStreetMap's Nominatim service**. Map tiles also reveal which buildings
+  are being looked at to the tile host. For client building addresses and
+  resident-linked units that is a privacy decision, not a technical one — so
+  it is not built until the owner says it is acceptable, and if it is, the
+  marker assets should be self-hosted and geocoding done server-side and
+  cached.
