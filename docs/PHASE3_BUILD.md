@@ -698,3 +698,123 @@ Naming them publishable costs nothing today: `nyc_ll11_fisp_cycle10` rather than
 | T29 | Sweep + PR | 3b |
 
 **13 tasks, 2 PRs.** 3a is independently shippable and is the piece a managing agent can actually use.
+
+---
+
+# ADDENDUM — admin console (owner request, 2026-10-22)
+
+Added after the spec above. Not yet sequenced into 3a/3b; see the open
+questions, which need answers before the affected task starts.
+
+## T30 · Admin console
+
+One place giving staff everything: projects, buildings, insurance, templates,
+milestones, violations, billing and predictions, plus T32 and T33 below and the
+3a compliance surfaces.
+
+Access already exists — `bn_staff` sees everything by role, and `/admin` has
+the pieces scattered across separate pages. This is consolidation and a
+landing surface, not a new permission. **No new "superadmin" role**: a second
+all-access role would be a second thing to get wrong, and the projections in
+`lib/visibility.js` already key on `bn_staff`.
+
+Visual language from the owner's references: a bento of stat tiles over dense
+tables, big display figures with deltas, pill-shaped status. The T0 primitives
+(`components/brand/`) are those pieces.
+
+### Acceptance
+- [ ] Every existing admin route is reachable from one console
+- [ ] Figures are server-computed; the console does no arithmetic
+- [ ] A non-staff user hitting `/admin/*` gets 404, verified in the network response
+
+## T31 · Presentations for owners and partners
+
+Create a presentation from live project data and share it with an owner or a
+**potential partner — who has no account**. That last part is the whole design.
+
+The precedent is the Phase 1 board portal (`/portal/[token]`): public to whoever
+holds the link, deliberately limited to headline figures, per-milestone amounts
+hidden. A partner deck is the same problem with a wider blast radius, so it
+reuses that model rather than inventing one.
+
+What it must not leak: client contact details, resident names and phones (the
+T17 occupancy data), per-sub pricing, another trade's costs, GMP where the
+audience isn't entitled to it. A presentation is a **projection**, built
+server-side from the same role-gated functions, never a client-side render of a
+full project object.
+
+Tokens need an expiry and a revoke — a deck sent to a partner who passes on the
+deal should stop working. The Phase 1 portal token has neither.
+
+### Acceptance
+- [ ] A share link renders without a session and shows only the projected fields
+- [ ] Revoking a link stops it serving, immediately
+- [ ] An expired link returns a dead page, not a login prompt
+- [ ] The raw network response for a partner link contains no resident name, no sub cost, no client email
+- [ ] Every share is logged: who shared, with whom, what was included, when
+
+## T32 · Subcontractor responsiveness
+
+Time between a message that needs a sub's answer and their answer. Phase 1
+already stores `messages` with timestamps and `project_events`.
+
+This measures a person's performance and may affect who gets offered work, so
+two rules:
+
+1. **Business hours only.** A message sent at 23:40 that gets answered at 08:10
+   is a prompt reply, not a nine-hour delay. This needs the business-day
+   arithmetic in `lib/dates.js` — and its documented gap, the missing holiday
+   calendar, becomes real here.
+2. **A sub can see their own number.** A score that decides who gets work and is
+   invisible to the person being scored is indefensible, and the first dispute
+   makes it unusable. Subs see their own; they never see another sub's.
+
+### Acceptance
+- [ ] Response time counts business hours, not wall-clock
+- [ ] A sub sees their own figure and no one else's
+- [ ] A message needing no reply does not count against anyone
+- [ ] The figure is stored per response, not recomputed from scratch on read
+
+## T33 · Desk quote vs live
+
+Time and cost variance between what was quoted at the desk and what the job is
+actually doing.
+
+**The baseline has to be frozen when the quote goes out.** Comparing live
+figures against a current estimate compares a number to itself — the estimate
+moves as the job moves. This is T21's lesson applied to money: store the quote
+as evidence, supersede rather than update, keep what was promised. Without the
+frozen snapshot there is no variance to compute, so this is the first thing T33
+builds, not a detail.
+
+Cost sources already exist: the T5 estimate, `scope_lines`, change-order
+`costDelta`, milestones, `actualSpend`. Schedule comes from T4's scheduler.
+
+Variance is signed and its meaning is not the sign: under budget is negative and
+good, a contingency draw is positive and bad. `components/brand/stat.js` takes
+an explicit intent for exactly this.
+
+Change orders are the honest part: a signed owner-requested CO raises the
+ceiling legitimately and should not read as an overrun. A `bn_error` CO is
+absorbed by B&N and must not be charged to the client's variance either. The
+variance that means something is **against the revised, signed baseline**, with
+the original quote shown alongside it.
+
+### Acceptance
+- [ ] The quote baseline is frozen at issue and never overwritten
+- [ ] A signed owner CO moves the revised baseline, not the overrun
+- [ ] A `bn_error` CO appears in neither the client's cost nor their variance
+- [ ] Under-budget renders as good news, not as an alert
+- [ ] Both original and revised baselines are visible, labelled
+
+## Open questions
+
+1. **T31 — what is in a presentation?** Project highlights, the T28 ARV and
+   savings figures, compliance posture, portfolio summary? And is a partner deck
+   a different, narrower template than an owner's?
+2. **T31 — how long should a share link live by default?**
+3. **T32 — what counts as needing a reply?** Any message addressed to the sub, a
+   message mentioning them, or only an explicit request? And what are the
+   business hours?
+4. **T33 — is "desk quote" the T5 GMP worksheet at issue**, or a separate
+   earlier number produced before the worksheet exists?
