@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { MessageCircle, X, Send, Loader2, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,12 @@ const CTA_CONFIG = {
 };
 
 export default function NestChat() {
+  // Never on a public link. A shared deck (/p/:token) and the board portal
+  // (/portal/:token) are seen by people with no account — a prospective
+  // partner, a board member — and an assistant wired to project data has no
+  // business being offered to them. Rendering it there also invites questions
+  // the recipient's link does not entitle them to ask.
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([SEED_MESSAGE]);
   const [input, setInput] = useState('');
@@ -87,6 +94,10 @@ export default function NestChat() {
       setLoading(false);
     }
   }
+
+  // Guarded after every hook: an early return above them would change hook
+  // order between renders.
+  if (pathname?.startsWith('/p/') || pathname?.startsWith('/portal/')) return null;
 
   return (
     <div className="fixed bottom-5 right-5 z-50">

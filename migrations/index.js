@@ -9,5 +9,6 @@ import m007 from './007_ai_predictions.js';
 import m008 from './008_violations.js';
 import m009 from './009_retainers.js';
 import m010 from './010_desk_quotes.js';
+import m011 from './011_presentations.js';
 
-export const MIGRATIONS = [m001, m002, m003, m004, m005, m006, m007, m008, m009, m010];
+export const MIGRATIONS = [m001, m002, m003, m004, m005, m006, m007, m008, m009, m010, m011];
