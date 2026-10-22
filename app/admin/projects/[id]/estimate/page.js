@@ -10,6 +10,9 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { formatMoney, formatQty } from '@/lib/format';
+import Pill from '@/components/brand/pill';
+import { Delta, SectionLabel } from '@/components/brand/stat';
+import DeskQuotePanel from '@/components/desk-quote';
 
 // GMP worksheet. Every figure on this page comes from the API (lib/money on the server).
 // This component does no arithmetic: it only renders strings.
@@ -70,6 +73,8 @@ export default function EstimatePage() {
           <Figure label="Contingency" value={formatMoney(rollup.contingency)} />
           <Figure label="Proposed ceiling" value={formatMoney(rollup.proposedCeiling)} strong sub={`Current GMP ${formatMoney(p.gmpCeiling)}`} />
         </div>
+
+        <DeskQuotePanel projectId={p.id} />
 
         {staleCount > 0 && (
           <div className="mt-4 flex items-center gap-2 rounded-md border border-alert/50 bg-alert/12 p-3 text-sm text-alert-ink">
