@@ -26,7 +26,8 @@ const BOROUGHS = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island'];
 const AREAS = [
   { href: '/admin/templates', label: 'Scope templates' },
   { href: '/admin/insurance', label: 'Insurance queue', countKey: 'coisPending' },
-  { href: '/admin/buildings', label: 'Buildings', countKey: 'buildings' }
+  { href: '/admin/buildings', label: 'Buildings', countKey: 'buildings' },
+  { href: '/admin/quote', label: 'Rate card' }
 ];
 
 // The console renders figures; it never computes them. Every number below
