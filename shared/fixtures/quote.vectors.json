@@ -124,7 +124,9 @@
         "psfLo": "0.00",
         "psfHi": "0.00",
         "constructionLo": "0.00",
-        "constructionHi": "0.00"
+        "constructionHi": "0.00",
+        "disqualified": false,
+        "noPublishedBand": true
       }
     },
     {
