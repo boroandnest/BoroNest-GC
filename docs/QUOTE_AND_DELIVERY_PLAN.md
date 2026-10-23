@@ -273,3 +273,35 @@ and the estimator number drift apart.
 
 Still outstanding from earlier: the Leaflet map privacy decision, and whether
 scoping calls get a `handled` flag so leads can become actionable.
+
+---
+
+## 7. Blockers resolved (2026-10-23)
+
+**Blocker 1 (playbook)** — resolved. `docs/PRICING_PLAYBOOK.md` is now in the
+repo and is the source of truth the spec names. §3.3 gives sourced concept
+ranges; §3.2 gives Buildability Review pricing; §5 gives the $75K disqualify
+threshold. The CSV's two missing tabs are superseded by this — the spec
+itself says the playbook, not a spreadsheet, is authoritative.
+
+**Blocker 2 (names)** — resolved by re-reading the playbook's own rule, not by
+asking again. It already draws the line I was asking about:
+
+- **Market benchmark sources** — LOD Construction, NYC Estimating Services,
+  Hudson Weekly — are research citations the playbook itself publishes (§3.3's
+  "Market source" column is in the *published* price guide; §7.3 lists them as
+  sources for the public cost guide). These may render publicly, with
+  attribution, exactly as the spec's `market_source` field intends.
+- **Named competitors** — JJS, PRHI, Agalliu, K&D, TRH, Darby, Bolt, InVision,
+  Reidy, MGI, Jay P, AKU, Slate — are for internal sales use only (§6
+  battlecards, "never disparage... by name," "review the document, not the
+  contractor"). These never appear in `rate_cards`, never reach `/quote`, and
+  are not stored anywhere the app renders. The battlecard content itself stays
+  in the playbook doc for staff to read, not in application data.
+
+So `market_source` is real and public; competitor identity is excluded from
+the system entirely, not merely hidden.
+
+**What the playbook does not give me:** numeric trade-split percentages by
+trade, and numeric condition-modifier multipliers. Both are left unseeded
+(not invented) — see Q1 below.

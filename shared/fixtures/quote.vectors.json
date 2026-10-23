@@ -1,0 +1,263 @@
+{
+  "_comment": "Golden vectors for lib/quote/calculate.test.js, against rate card v1 (lib/quote/seed.js) built from docs/PRICING_PLAYBOOK.md. Changing a vector's expected output means the pricing changed \u2014 that should be a reviewed, deliberate edit, not a side effect of refactoring the engine.",
+  "cases": [
+    {
+      "name": "coffee_fast_casual, Manhattan, no modifiers \u2014 the published band passes through unchanged",
+      "input": {
+        "conceptKey": "coffee_fast_casual",
+        "sqft": 1200,
+        "borough": "manhattan",
+        "condition": "second_same"
+      },
+      "expect": {
+        "model": "A",
+        "modelReason": null,
+        "psfLo": "170.00",
+        "psfHi": "250.00",
+        "constructionLo": "204000.00",
+        "constructionHi": "300000.00",
+        "contingencyLo": "20400.00",
+        "contingencyHi": "45000.00",
+        "totalLo": "224400.00",
+        "totalHi": "345000.00",
+        "disqualified": false,
+        "reviewTier": "fnb",
+        "reviewPrice": "2250.00"
+      }
+    },
+    {
+      "name": "same concept, outer borough \u2014 the band scales down, not shifts",
+      "input": {
+        "conceptKey": "coffee_fast_casual",
+        "sqft": 1200,
+        "borough": "outer",
+        "condition": "second_same"
+      },
+      "expect": {
+        "psfLo": "136.00",
+        "psfHi": "225.00",
+        "constructionLo": "163200.00",
+        "constructionHi": "270000.00"
+      }
+    },
+    {
+      "name": "after-hours widens the band on top of outer-borough",
+      "input": {
+        "conceptKey": "coffee_fast_casual",
+        "sqft": 1200,
+        "borough": "outer",
+        "condition": "second_same",
+        "afterHours": true
+      },
+      "expect": {
+        "psfLo": "156.40",
+        "psfHi": "292.50",
+        "constructionLo": "187680.00",
+        "constructionHi": "351000.00"
+      }
+    },
+    {
+      "name": "unknown condition routes to Model B regardless of concept",
+      "input": {
+        "conceptKey": "coffee_fast_casual",
+        "sqft": 1200,
+        "borough": "manhattan",
+        "condition": "unknown"
+      },
+      "expect": {
+        "model": "B",
+        "modelReason": "You haven't been inside the space yet \u2014 existing conditions drive this budget."
+      }
+    },
+    {
+      "name": "a bar/lounge with cooking routes to Model B \u2014 a kitchen behind a bar is unknown conditions",
+      "input": {
+        "conceptKey": "bar_lounge",
+        "sqft": 1500,
+        "borough": "manhattan",
+        "condition": "second_same",
+        "cooking": true,
+        "existingExhaust": true
+      },
+      "expect": {
+        "model": "B",
+        "modelReason": "A full kitchen behind a bar carries unknown existing conditions."
+      }
+    },
+    {
+      "name": "a bar/lounge with no cooking stays Model A",
+      "input": {
+        "conceptKey": "bar_lounge",
+        "sqft": 1500,
+        "borough": "manhattan",
+        "condition": "second_same",
+        "cooking": false
+      },
+      "expect": {
+        "model": "A",
+        "modelReason": null
+      }
+    },
+    {
+      "name": "full_service_restaurant is Model B by default, even with known conditions",
+      "input": {
+        "conceptKey": "full_service_restaurant",
+        "sqft": 2000,
+        "borough": "manhattan",
+        "condition": "second_same"
+      },
+      "expect": {
+        "model": "B",
+        "modelReason": "Full-service restaurant scopes carry too much unknown to price as a lump sum."
+      }
+    },
+    {
+      "name": "medical_specialized has no published band and is always Model B",
+      "input": {
+        "conceptKey": "medical_specialized",
+        "sqft": 1000,
+        "borough": "manhattan",
+        "condition": "second_same"
+      },
+      "expect": {
+        "model": "B",
+        "psfLo": "0.00",
+        "psfHi": "0.00",
+        "constructionLo": "0.00",
+        "constructionHi": "0.00"
+      }
+    },
+    {
+      "name": "an FNB concept with cooking and no existing hood or grease adds both adders",
+      "input": {
+        "conceptKey": "coffee_fast_casual",
+        "sqft": 1200,
+        "borough": "manhattan",
+        "condition": "second_same",
+        "cooking": true,
+        "existingHood": false,
+        "existingGrease": false,
+        "existingExhaust": true
+      },
+      "expect": {
+        "constructionLo": "204000.00",
+        "constructionHi": "300000.00",
+        "contingencyLo": "22000.00",
+        "contingencyHi": "59250.00",
+        "totalLo": "242000.00",
+        "totalHi": "454250.00"
+      }
+    },
+    {
+      "name": "an existing hood suppresses the hood adder but not grease",
+      "input": {
+        "conceptKey": "coffee_fast_casual",
+        "sqft": 1200,
+        "borough": "manhattan",
+        "condition": "second_same",
+        "cooking": true,
+        "existingHood": true,
+        "existingGrease": false,
+        "existingExhaust": true
+      },
+      "expect": {
+        "contingencyLo": "21200.00",
+        "contingencyHi": "54000.00"
+      }
+    },
+    {
+      "name": "exhaust riser tiers by floors \u2014 low-rise",
+      "input": {
+        "conceptKey": "coffee_fast_casual",
+        "sqft": 1200,
+        "borough": "manhattan",
+        "condition": "second_same",
+        "cooking": true,
+        "existingHood": true,
+        "existingGrease": true,
+        "floors": 4
+      },
+      "expect": {
+        "contingencyLo": "21600.00",
+        "contingencyHi": "47700.00"
+      }
+    },
+    {
+      "name": "exhaust riser tiers by floors \u2014 mid-rise",
+      "input": {
+        "conceptKey": "coffee_fast_casual",
+        "sqft": 1200,
+        "borough": "manhattan",
+        "condition": "second_same",
+        "cooking": true,
+        "existingHood": true,
+        "existingGrease": true,
+        "floors": 10
+      },
+      "expect": {
+        "contingencyLo": "23400.00",
+        "contingencyHi": "54000.00"
+      }
+    },
+    {
+      "name": "exhaust riser tiers by floors \u2014 high-rise, no ceiling",
+      "input": {
+        "conceptKey": "coffee_fast_casual",
+        "sqft": 1200,
+        "borough": "manhattan",
+        "condition": "second_same",
+        "cooking": true,
+        "existingHood": true,
+        "existingGrease": true,
+        "floors": 40
+      },
+      "expect": {
+        "contingencyLo": "25400.00",
+        "contingencyHi": "60000.00"
+      }
+    },
+    {
+      "name": "a total below the $75,000 minimum disqualifies with a reason",
+      "input": {
+        "conceptKey": "boutique_retail",
+        "sqft": 400,
+        "borough": "outer",
+        "condition": "second_same"
+      },
+      "expect": {
+        "disqualified": true,
+        "constructionLo": "38400.00"
+      }
+    },
+    {
+      "name": "a comfortably qualified total is not disqualified",
+      "input": {
+        "conceptKey": "boutique_retail",
+        "sqft": 2000,
+        "borough": "manhattan",
+        "condition": "second_same"
+      },
+      "expect": {
+        "disqualified": false
+      }
+    },
+    {
+      "name": "Model B carries a preconstruction/fee structure; Model A carries none",
+      "input": {
+        "conceptKey": "full_service_restaurant",
+        "sqft": 2000,
+        "borough": "manhattan",
+        "condition": "second_same"
+      },
+      "expect": {
+        "model": "B"
+      },
+      "expectModelBStructure": {
+        "preconLo": "5000.00",
+        "preconHi": "15000.00",
+        "feeLo": "55000.00",
+        "feeHi": "108000.00"
+      }
+    }
+  ]
+}
