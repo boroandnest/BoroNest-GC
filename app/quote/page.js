@@ -3,7 +3,8 @@
 // Playbook §3.1/§3.2/§4, QUOTE_ENGINE_BUILD.md §4. Progressive disclosure:
 // the range renders before any contact field is shown — "give the number
 // before asking for the email" is the whole point of this page.
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import SiteNav from '@/components/site-nav';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -37,9 +38,23 @@ const CTA_COPY = {
 };
 
 export default function QuotePage() {
+  return (
+    <Suspense fallback={null}>
+      <Quote />
+    </Suspense>
+  );
+}
+
+function Quote() {
+  const searchParams = useSearchParams();
+  // ?tier=approvals pre-selects a fixed tier; ?custom=1 flags a bespoke
+  // scope request (tracked, not calculated differently — see
+  // lib/quote/calculate.js: an unrecognized key just adds no tier add-ons).
+  const presetTier = searchParams.get('custom') === '1' ? 'custom' : (searchParams.get('tier') || '');
+
   const [meta, setMeta] = useState(null);
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ conceptKey: '', sqft: '', borough: 'manhattan', condition: 'second_same', cooking: false, afterHours: false, existingHood: false, existingGrease: false, existingExhaust: false, floors: '', holdingCompetingBid: false, multiUnit: false });
+  const [form, setForm] = useState({ conceptKey: '', sqft: '', borough: 'manhattan', condition: 'second_same', cooking: false, afterHours: false, existingHood: false, existingGrease: false, existingExhaust: false, floors: '', holdingCompetingBid: false, multiUnit: false, serviceTierKey: presetTier });
   const [quote, setQuote] = useState(null);
   const [busy, setBusy] = useState(false);
   const [captured, setCaptured] = useState(null);
@@ -139,6 +154,18 @@ export default function QuotePage() {
                   </select>
                 </div>
 
+                {meta.serviceTiers?.length > 0 && (
+                  <div>
+                    <Label className="mb-1.5 block text-sm">Build package</Label>
+                    <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" value={form.serviceTierKey} onChange={e => setForm(f => ({ ...f, serviceTierKey: e.target.value }))}>
+                      <option value="">No package selected yet</option>
+                      {meta.serviceTiers.map(t => <option key={t.key} value={t.key}>{t.name}</option>)}
+                      <option value="custom">Custom / bespoke scope</option>
+                    </select>
+                    <p className="mt-1 text-xs text-muted-foreground">Changes the add-on costs below, never the per-sf rate. <a href="/pricing" className="underline">Compare packages</a>.</p>
+                  </div>
+                )}
+
                 {concept?.isFnb && (
                   <div className="space-y-2 rounded-md border border-border p-3">
                     <SectionLabel>Food &amp; beverage</SectionLabel>
@@ -187,6 +214,23 @@ export default function QuotePage() {
                 {result.marketLo && (
                   <div className="rounded-md border border-border p-3 text-xs text-muted-foreground">
                     Published NYC market range for this concept: ${result.marketLo}–${result.marketHi}/sf.
+                  </div>
+                )}
+
+                {result.serviceTier && (
+                  <div className="rounded-md border border-border p-3">
+                    <SectionLabel>{result.serviceTier.name} — included above</SectionLabel>
+                    <p className="mt-1 text-xs text-muted-foreground">{result.serviceTier.feeLabel}</p>
+                    {result.serviceTier.addOns.length > 0 && (
+                      <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                        {result.serviceTier.addOns.map(a => (
+                          <li key={a.label} className="flex items-center justify-between">
+                            <span>{a.label}</span>
+                            <span>{a.atCost ? 'at cost + 10%' : `${formatMoney(a.lo, { cents: false })}–${formatMoney(a.hi, { cents: false })}`}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 )}
 

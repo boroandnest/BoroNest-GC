@@ -58,6 +58,7 @@ export const POST = route(async ({ request }) => {
     rateCardVersion: card.version,
     conceptKey: input.conceptKey, sqft: input.sqft, borough: input.borough, condition: input.condition,
     floors: input.floors ?? null,
+    serviceTierKey: input.serviceTierKey ?? null,
     flags: { cooking: input.cooking, afterHours: input.afterHours, existingHood: input.existingHood, existingGrease: input.existingGrease, existingExhaust: input.existingExhaust },
     model: result.model,
     // Full internal detail (trade splits, Model B structure) kept for staff

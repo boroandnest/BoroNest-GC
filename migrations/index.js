@@ -11,5 +11,6 @@ import m009 from './009_retainers.js';
 import m010 from './010_desk_quotes.js';
 import m011 from './011_presentations.js';
 import m012 from './012_rate_cards.js';
+import m013 from './013_rate_card_service_tiers.js';
 
-export const MIGRATIONS = [m001, m002, m003, m004, m005, m006, m007, m008, m009, m010, m011, m012];
+export const MIGRATIONS = [m001, m002, m003, m004, m005, m006, m007, m008, m009, m010, m011, m012, m013];
