@@ -9,11 +9,11 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground antialiased">
         {children}
         <NestChat />
-        <Toaster theme="dark" position="top-right" richColors />
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );

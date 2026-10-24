@@ -21,6 +21,7 @@ export function openNest() {
 const PUBLIC_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/services', label: 'Services' },
+  { href: '/pricing', label: 'Pricing' },
   { href: '/about', label: 'About' }
 ];
 
@@ -61,7 +62,7 @@ export default function SiteNav() {
           <button
             type="button"
             onClick={openNest}
-            className="ml-2 rounded-[20px] border border-[rgba(200,184,154,.38)] bg-[rgba(200,184,154,.11)] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[2px] text-[#C8B89A] hover:bg-[rgba(200,184,154,.2)]"
+            className="nest-pill ml-2 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[2px] text-sand-ink hover:bg-sand/25"
           >
             ✦ Ask Nest →
           </button>
@@ -118,7 +119,7 @@ export default function SiteNav() {
           {[...PUBLIC_LINKS, user ? { href: '/dashboard', label: 'Workspace' } : { href: '/join', label: 'Join' }].map(l => (
             <Link key={l.href} href={l.href} className="rounded-md px-3 py-2 text-sm hover:bg-muted" onClick={() => setMobileOpen(false)}>{l.label}</Link>
           ))}
-          <button type="button" onClick={() => { setMobileOpen(false); openNest(); }} className="rounded-md px-3 py-2 text-left text-sm text-[#C8B89A] hover:bg-muted">✦ Ask Nest</button>
+          <button type="button" onClick={() => { setMobileOpen(false); openNest(); }} className="rounded-md px-3 py-2 text-left text-sm text-sand-ink hover:bg-muted">✦ Ask Nest</button>
         </div>
       )}
     </nav>

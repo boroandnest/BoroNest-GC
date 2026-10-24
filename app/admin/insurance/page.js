@@ -67,7 +67,7 @@ function Review({ c, onDone }) {
           </div>
           <div className="flex items-center gap-2"><CoiChip chip={c.chip} /><Button size="sm" variant="outline" onClick={open}>Open certificate</Button></div>
         </div>
-        {c.compliance && !c.compliance.ok && <div className="text-xs text-[#D4654A]">{c.chip.label}{c.compliance.missingAi?.length ? ` — missing AI: ${c.compliance.missingAi.join('; ')}` : ''}</div>}
+        {c.compliance && !c.compliance.ok && <div className="text-xs text-alert-ink">{c.chip.label}{c.compliance.missingAi?.length ? ` — missing AI: ${c.compliance.missingAi.join('; ')}` : ''}</div>}
         {c.requiredAi?.length > 0 && <div className="text-xs text-muted-foreground">Required AI: {c.requiredAi.join(' · ')}{c.building?.certHolderName ? ` — Holder: ${c.building.certHolderName} ${c.building.certHolderCo || ''}` : ''}</div>}
         {c.status === 'pending' && (
           <div className="grid gap-2 md:grid-cols-4">

@@ -55,7 +55,7 @@ export default function ChangesPage() {
                 </div>
                 {co.costDelta !== undefined && <div className="shrink-0 text-right font-mono text-lg">{formatMoney(co.costDelta)}</div>}
               </div>
-              {co.canSign && <div className="mt-3 font-mono text-[10px] uppercase tracking-[2px] text-[#C8B89A]">Review and sign →</div>}
+              {co.canSign && <div className="mt-3 font-mono text-[10px] uppercase tracking-[2px] text-sand-ink">Review and sign →</div>}
             </Link>
           ))}
         </div>

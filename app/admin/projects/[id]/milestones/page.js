@@ -13,11 +13,11 @@ import { formatMoney } from '@/lib/format';
 
 const RELEASE = {
   awaiting_verification: ['Awaiting verification', 'text-muted-foreground border-border'],
-  in_window: ['24h dispute window', 'text-[#C8B89A] border-[#C8B89A]/60'],
-  disputed: ['Disputed — release paused', 'text-[#D4654A] border-[#D4654A]/60'],
-  releasing: ['Releasing', 'text-[#C8B89A] border-[#C8B89A]/60'],
-  released: ['Paid', 'text-emerald-400 border-emerald-500/40'],
-  transfer_failed: ['Transfer failed', 'text-[#D4654A] border-[#D4654A]/60'],
+  in_window: ['24h dispute window', 'text-sand-ink border-sand'],
+  disputed: ['Disputed — release paused', 'text-alert-ink border-alert/50'],
+  releasing: ['Releasing', 'text-sand-ink border-sand'],
+  released: ['Paid', 'text-forest border-forest/30'],
+  transfer_failed: ['Transfer failed', 'text-alert-ink border-alert/50'],
   not_applicable: ['Client draw', 'text-muted-foreground border-border']
 };
 
@@ -88,8 +88,8 @@ export default function MilestonesAdmin() {
                   <div className="min-w-0">
                     <div className="font-medium">{m.title || m.name}</div>
                     <div className="text-xs text-muted-foreground">{m.trigger || m.phase}{m.payeeName ? ` · ${m.payeeName}` : ''}{m.releaseEta ? ` · releases after ${new Date(m.releaseEta).toLocaleString()}` : ''}</div>
-                    {m.disputeOpenedAt && !m.disputeResolvedAt && <div className="mt-1 text-xs text-[#D4654A]">Client dispute: {m.disputeReason || '(no reason given)'}</div>}
-                    {m.releaseError && <div className="mt-1 text-xs text-[#D4654A]">{m.releaseError === 'payouts_not_enabled' ? 'Payee has not finished Stripe payout setup.' : m.releaseError}</div>}
+                    {m.disputeOpenedAt && !m.disputeResolvedAt && <div className="mt-1 text-xs text-alert-ink">Client dispute: {m.disputeReason || '(no reason given)'}</div>}
+                    {m.releaseError && <div className="mt-1 text-xs text-alert-ink">{m.releaseError === 'payouts_not_enabled' ? 'Payee has not finished Stripe payout setup.' : m.releaseError}</div>}
                     {m.stripeTransferId && <div className="mt-1 font-mono text-[10px] text-muted-foreground">{m.stripeTransferId}</div>}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">

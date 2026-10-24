@@ -10,6 +10,9 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { formatMoney, formatQty } from '@/lib/format';
+import Pill from '@/components/brand/pill';
+import { Delta, SectionLabel } from '@/components/brand/stat';
+import DeskQuotePanel from '@/components/desk-quote';
 
 // GMP worksheet. Every figure on this page comes from the API (lib/money on the server).
 // This component does no arithmetic: it only renders strings.
@@ -71,8 +74,10 @@ export default function EstimatePage() {
           <Figure label="Proposed ceiling" value={formatMoney(rollup.proposedCeiling)} strong sub={`Current GMP ${formatMoney(p.gmpCeiling)}`} />
         </div>
 
+        <DeskQuotePanel projectId={p.id} />
+
         {staleCount > 0 && (
-          <div className="mt-4 flex items-center gap-2 rounded-md border border-[#D4654A]/50 bg-[#D4654A]/10 p-3 text-sm text-[#D4654A]">
+          <div className="mt-4 flex items-center gap-2 rounded-md border border-alert/50 bg-alert/12 p-3 text-sm text-alert-ink">
             <AlertTriangle className="h-4 w-4" /> {staleCount} line{staleCount === 1 ? '' : 's'} priced on unit costs older than 120 days. Verify before setting the ceiling.
           </div>
         )}
@@ -117,12 +122,12 @@ export default function EstimatePage() {
               <tbody>
                 {rows.length === 0 && <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">No scope lines yet.</td></tr>}
                 {rows.map(r => (
-                  <tr key={r.id} className={`border-b border-border/40 last:border-0 ${r.staleCost ? 'bg-[#D4654A]/10' : ''}`}>
+                  <tr key={r.id} className={`border-b border-border/40 last:border-0 ${r.staleCost ? 'bg-alert/12' : ''}`}>
                     <td className="p-3 capitalize">{r.trade}</td>
                     <td className="p-3">
                       <div className="font-medium">{r.title}</div>
                       <div className="mt-0.5 flex flex-wrap gap-1">
-                        {r.staleCost && <span className="rounded border border-[#D4654A]/60 px-1.5 font-mono text-[9px] uppercase tracking-[1.5px] text-[#D4654A]">Verify pricing · {r.costAgeDays}d old</span>}
+                        {r.staleCost && <span className="rounded border border-alert/50 px-1.5 font-mono text-[9px] uppercase tracking-[1.5px] text-alert-ink">Verify pricing · {r.costAgeDays}d old</span>}
                         {r.orphaned && <span className="rounded border border-border px-1.5 font-mono text-[9px] uppercase tracking-[1.5px] text-muted-foreground">Not in template</span>}
                         {r.plannedStart && <span className="font-mono text-[9px] text-muted-foreground">{r.plannedStart} → {r.plannedEnd}</span>}
                       </div>

@@ -118,7 +118,7 @@ export default function BuildingRegister() {
                 {list.map(v => (
                   <tr key={v.id} className="border-b border-border/40 align-top last:border-0">
                     <td className="p-3 font-mono text-xs">{v.hpdId || '—'}</td>
-                    <td className="p-3 text-center font-mono" style={{ color: v.class === 'C' ? '#D4654A' : undefined }}>{v.class}</td>
+                    <td className={`p-3 text-center font-mono ${v.class === 'C' ? 'text-alert-ink' : ''}`}>{v.class}</td>
                     <td className="p-3">{v.unit || '—'}</td>
                     <td className="p-3">{v.description}</td>
                     <td className="p-3 text-xs">{v.correctBy || '—'}</td>
@@ -127,7 +127,7 @@ export default function BuildingRegister() {
                         {STEPS.map(([k, l]) => {
                           const done = !!v[k];
                           const canClick = staff || k === 'clientAcceptedAt';
-                          return <button key={k} disabled={!canClick} onClick={() => step(v, k, done)} title={done ? new Date(v[k]).toLocaleString() : 'Not yet'} className={`rounded border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[1px] ${done ? 'border-emerald-500/40 text-emerald-400' : 'border-border text-muted-foreground'} ${canClick ? 'hover:border-primary' : 'cursor-default'}`}>{done ? '✓ ' : ''}{l}</button>;
+                          return <button key={k} disabled={!canClick} onClick={() => step(v, k, done)} title={done ? new Date(v[k]).toLocaleString() : 'Not yet'} className={`rounded border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[1px] ${done ? 'border-forest/30 text-forest' : 'border-border text-muted-foreground'} ${canClick ? 'hover:border-primary' : 'cursor-default'}`}>{done ? '✓ ' : ''}{l}</button>;
                         })}
                       </div>
                     </td>

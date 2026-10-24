@@ -91,7 +91,7 @@ export default function TemplatesPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <Textarea rows={22} className="font-mono text-xs" value={editing.text} onChange={e => setEditing({ ...editing, text: e.target.value })} />
-              {problem && <div className="rounded-md border border-[#D4654A]/50 bg-[#D4654A]/10 p-3 text-sm text-[#D4654A]">{problem}</div>}
+              {problem && <div className="rounded-md border border-alert/50 bg-alert/12 p-3 text-sm text-alert-ink">{problem}</div>}
               <div className="flex gap-2">
                 <Button onClick={save} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save</Button>
                 <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
