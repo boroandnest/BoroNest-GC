@@ -144,6 +144,11 @@ export default function NestChat() {
               </button>
             </div>
 
+            {/* SECURITY_HARDENING.md item 9 — one-line AI/data notice. */}
+            <p className="border-b border-border bg-muted/40 px-4 py-1.5 text-[10px] leading-snug text-muted-foreground">
+              Automated AI assistant — your messages are sent to a third-party model provider. See our <Link href="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>.
+            </p>
+
             {/* Messages */}
             <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
               {messages.map((m, i) => {

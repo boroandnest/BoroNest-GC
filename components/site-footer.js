@@ -28,11 +28,16 @@ export default function SiteFooter() {
         <div>
           <div className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Contact</div>
           <p className="text-sm text-muted-foreground">New York City, NY</p>
-          <p className="text-sm text-muted-foreground">hello@boronest.co</p>
+          <p className="text-sm text-muted-foreground">hello@boroandnestnyc.com</p>
         </div>
       </div>
       <div className="border-t border-border/40 py-6 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Boro & Nest Collective. All rights reserved.
+        <p>© {new Date().getFullYear()} Boro & Nest Collective. All rights reserved.</p>
+        <p className="mt-1 flex items-center justify-center gap-3">
+          <Link href="/privacy" className="hover:text-primary">Privacy Policy</Link>
+          <span aria-hidden="true">·</span>
+          <Link href="/terms" className="hover:text-primary">Terms of Service</Link>
+        </p>
       </div>
     </footer>
   );
