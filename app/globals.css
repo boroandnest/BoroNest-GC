@@ -71,6 +71,36 @@ html, body {
     --sidebar-accent-foreground: var(--cream);
     --sidebar-border: 160 20% 26%;
     --sidebar-ring: var(--sand);
+
+    /* ───────────────────────────────────────────────────────────────────
+       Redesign Direction D · BORO_NEST_REDESIGN_BUILD_SPEC.md §1.
+       Prefixed --d- (not --forest/--ivory/etc.) on purpose: the live brand
+       tokens above already own those names as HSL triples, and §0 forbids
+       touching /admin, the project room or the partner portal in this
+       branch. Marketing + the four public/partner redesign screens read
+       these; everything else keeps using the tokens above until §8.
+       ─────────────────────────────────────────────────────────────────── */
+    --d-forest:   #12322C; /* page ground */
+    --d-forest-2: #154039; /* raised card on forest */
+    --d-forest-3: #0A1F1B; /* footer, nav bar */
+    --d-brick:    #D9552F; /* primary accent, one per screen */
+    --d-brick-lo: #F2A88E; /* accent text on dark */
+    --d-ivory:    #F5F1E9; /* text on forest, light surfaces */
+    --d-paper:    #FFFDF8; /* light cards inside product UI */
+    --d-ink:      #171818;
+    --d-sage:     #8FBCA9; /* muted text on forest */
+    --d-mist:     #CFE0D8; /* body text on forest */
+    --d-hair:     rgba(245, 241, 233, .18);
+
+    /* Semantic states — never reuse --d-brick for error. */
+    --d-ok:       #1F6B45;
+    --d-ok-bg:    #E8F3EC;
+    --d-review:   #7A5A00;
+    --d-review-bg:#FBF1D6;
+    --d-risk:     #8A2E1B;
+    --d-risk-bg:  #FBE7E1;
+    --d-draft:    #44504B;
+    --d-draft-bg: #F0EFEB;
   }
 
   /* Deep forest surface. Same five colors, inverted. */
