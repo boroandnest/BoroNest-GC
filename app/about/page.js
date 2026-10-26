@@ -1,13 +1,13 @@
 import Link from 'next/link';
-import SiteNav from '@/components/site-nav';
-import SiteFooter from '@/components/site-footer';
+import DNav from '@/components/redesign/d-nav';
+import DFooter from '@/components/redesign/d-footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
 export default function AboutPage() {
   return (
     <>
-      <SiteNav />
+      <DNav />
       <div className="container py-16 md:py-24">
         <div className="mx-auto max-w-3xl">
           <div className="text-xs font-semibold uppercase tracking-widest text-primary">About</div>
@@ -35,7 +35,7 @@ export default function AboutPage() {
           </div>
         </div>
       </div>
-      <SiteFooter />
+      <DFooter />
     </>
   );
 }

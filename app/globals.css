@@ -220,3 +220,43 @@ html, body {
 ::-webkit-scrollbar-track { background: hsl(var(--background)); }
 ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 6px; }
 ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Redesign Direction D §8 — console token swap. Applied via a `.d-console`
+   wrapper class (app/admin/layout.js, app/projects/[id]/layout.js) rather
+   than overloading the existing (currently unused) `.dark` class, so this
+   stays scoped to exactly the two surfaces §8 names — no new layout, no
+   marketing motion, nothing else changes. Same shadcn variable names the
+   rest of the app already reads; only the HSL values are the §1 palette.
+   ───────────────────────────────────────────────────────────────────────── */
+.d-console {
+  --background: 169 47% 13%;        /* --d-forest */
+  --foreground: 40 38% 94%;         /* --d-ivory */
+  --card: 170 51% 17%;              /* --d-forest-2 */
+  --card-foreground: 40 38% 94%;
+  --popover: 170 51% 17%;
+  --popover-foreground: 40 38% 94%;
+  --primary: 13 69% 52%;            /* --d-brick */
+  --primary-foreground: 40 38% 94%;
+  --secondary: 169 51% 8%;          /* --d-forest-3 */
+  --secondary-foreground: 40 38% 94%;
+  --muted: 170 51% 17%;
+  --muted-foreground: 155 25% 65%;  /* --d-sage */
+  --accent: 16 79% 75%;             /* --d-brick-lo */
+  --accent-foreground: 169 47% 13%;
+  --destructive: 10 67% 32%;        /* --d-risk */
+  --destructive-foreground: 40 38% 94%;
+  --border: 168 22% 31%;            /* --d-hair (ivory at 18%) blended onto --d-forest-2 as an opaque HSL triple — hsl(var(--border)) has no alpha-modifier syntax wired up in tailwind.config.js, so --d-hair's raw rgba() can't be used here directly */
+  --input: 170 51% 17%;
+  --ring: 13 69% 52%;
+
+  /* Semantic chip set (PHASE1_BUILD.md §7's ok/warn/problem/neutral/strong
+     tone system in components/brand/pill.js stays as-is — these are the
+     raw values it already composes from --forest/--sand/--alert via :root.
+     The console's own one-off status strings use these directly instead. */
+  --d-console-ok: 150 55% 27%;
+  --d-console-review: 44 100% 24%;
+  --d-console-risk: 10 67% 32%;
+  --d-console-draft: 155 8% 29%;
+}
+.d-console :is(h1, h2, h3, h4) { font-family: var(--font-archivo, var(--font-display)); }
