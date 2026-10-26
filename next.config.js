@@ -4,12 +4,6 @@ const nextConfig = {
     unoptimized: true,
     remotePatterns: [
       { protocol: 'https', hostname: 'avatars.githubusercontent.com', pathname: '/**' },
-      // Redesign Direction D §3 reference imagery — placeholder stock photos,
-      // not owned project photography. Flagged in BORO_NEST_REDESIGN_BUILD_SPEC.md
-      // as a blocking pre-launch item: swap for owned/licensed photos before
-      // a public deploy, then this entry can go.
-      { protocol: 'https', hostname: 'images.pexels.com', pathname: '/**' },
-      { protocol: 'https', hostname: 'images.unsplash.com', pathname: '/**' },
     ],
   },
   // Renamed from experimental.serverComponentsExternalPackages in Next 15

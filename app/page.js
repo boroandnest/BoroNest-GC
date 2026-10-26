@@ -12,16 +12,16 @@ import { ArrowRight, Building2, Hammer, ShieldCheck, ClipboardCheck, BarChart3 }
 import DNav from '@/components/redesign/d-nav';
 import DFooter from '@/components/redesign/d-footer';
 import DMarquee from '@/components/redesign/d-marquee';
-import {
-  Accordion, AccordionItem, AccordionTrigger, AccordionContent
-} from '@/components/ui/accordion';
 
-// Reference imagery only — unverified for licence per spec's content-
-// integrity rule. Replace with owned/licensed photography before launch.
-const HERO_IMG = 'https://images.pexels.com/photos/18290521/pexels-photo-18290521.jpeg?auto=compress&w=1600';
-const INTERIOR_IMG = 'https://images.unsplash.com/photo-1597498178146-3e9378203bc9?w=1200';
-const CAFE_IMG = 'https://images.unsplash.com/photo-1521017432531-fbd92d768814?w=1200';
-const OFFICE_IMG = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200';
+// Uploaded NYC photography (public/redesign/) — real photos supplied for
+// this redesign, not generic stock. Still flagged "Reference imagery" per
+// spec's content-integrity rule until confirmed as licensed/owned Boro&Nest
+// work — none of these are actual completed Boro&Nest projects.
+const HERO_IMG = '/redesign/hero-bar.webp';       // warm gold-lit interior — spec's art-direction rule: hero needs warm tone, not a cool skyline
+const SKYLINE_IMG = '/redesign/skyline.webp';     // golden-hour NYC skyline — letter-window pan
+const GRAFFITI_IMG = '/redesign/graffiti.webp';
+const FOOD_HALL_IMG = '/redesign/food-hall.webp';
+const RETAIL_IMG = '/redesign/retail.webp';
 
 const TICKER = ['Boutique Retail', 'Coffee / Café', 'Fast Casual', 'Bar / Lounge', 'Full-Service Restaurant', 'Medical / Specialized', 'Fitness', 'Office'];
 
@@ -36,10 +36,9 @@ const PHASES = [
 ];
 
 const WORK = [
-  { img: HERO_IMG, title: 'Sample Project — Build-Out', meta: 'Reference imagery' },
-  { img: INTERIOR_IMG, title: 'Sample Project — Interior Fit-Out', meta: 'Reference imagery' },
-  { img: CAFE_IMG, title: 'Sample Project — Café Build-Out', meta: 'Reference imagery' },
-  { img: OFFICE_IMG, title: 'Sample Project — Office Build-Out', meta: 'Reference imagery' }
+  { img: GRAFFITI_IMG, title: 'Sample Project — Retail Storefront', meta: 'Reference imagery' },
+  { img: FOOD_HALL_IMG, title: 'Sample Project — Food Hall Build-Out', meta: 'Reference imagery' },
+  { img: RETAIL_IMG, title: 'Sample Project — Retail Fit-Out', meta: 'Reference imagery' }
 ];
 
 const ROLES = [
@@ -198,7 +197,7 @@ function LetterWindow() {
           fontFamily: 'var(--font-archivo)',
           fontSize: 'clamp(74px, 13.1vw, 189px)',
           color: 'transparent',
-          backgroundImage: `url(${HERO_IMG})`,
+          backgroundImage: `url(${SKYLINE_IMG})`,
           backgroundSize: '150% auto',
           backgroundClip: 'text',
           WebkitBackgroundClip: 'text',
@@ -292,6 +291,16 @@ function LedgerProof() {
             <Ledger value="$0" label="Cost Overruns (GMP)" />
             <Ledger value="48hr" label="Sub Payment Turnaround" />
           </div>
+
+          {/* Equation strip — same one §4 (Pricing) carries. Reinforced
+              here as a teaser; the published figures live only on the
+              rate card, never duplicated as numbers in this component. */}
+          <div className="mt-8 flex flex-wrap items-center gap-2 border-t border-[var(--d-hair)] pt-6 text-xs uppercase tracking-widest text-[var(--d-sage)]" style={{ fontFamily: 'var(--font-plex-mono)' }}>
+            <span>Cost of work</span><span className="text-[var(--d-brick-lo)]">+</span>
+            <span>Our fee</span><span className="text-[var(--d-brick-lo)]">+</span>
+            <span>Contingency</span><span className="text-[var(--d-brick-lo)]">=</span>
+            <span className="text-[var(--d-ivory)]">Guaranteed Maximum Price</span>
+          </div>
         </div>
       </div>
     </section>
@@ -332,34 +341,38 @@ function Roles() {
   );
 }
 
+// Two horizontal scrolling lanes (not an accordion) — matches the D-Home
+// reference's `.fq .lane .in .fc` structure. Each card is a native
+// <details>/<summary> so it's keyboard/screen-reader accessible on its own,
+// and DMarquee already pauses the lane on hover/focus so a card can actually
+// be read and opened without fighting the scroll.
 function FaqLanes() {
   return (
-    <section className="border-t border-[var(--d-hair)] bg-[var(--d-forest)] py-20 text-[var(--d-ivory)]">
-      <div className="container">
-        <div className="mb-10 max-w-2xl">
-          <div className="text-xs uppercase tracking-[0.2em] text-[var(--d-brick-lo)]" style={{ fontFamily: 'var(--font-plex-mono)' }}>FAQ</div>
-          <h3 className="mt-3 font-[800] tracking-tight" style={{ fontFamily: 'var(--font-archivo)', fontSize: 'clamp(28px, 4vw, 44px)' }}>Two lanes. Same answers either way.</h3>
-        </div>
-        <div className="grid gap-8 md:grid-cols-2">
-          <Accordion type="single" collapsible>
-            {FAQ_LEFT.map((f, i) => (
-              <AccordionItem key={i} value={`l-${i}`} className="border-[var(--d-hair)]">
-                <AccordionTrigger className="text-[var(--d-ivory)] hover:no-underline">{f.q}</AccordionTrigger>
-                <AccordionContent className="text-[var(--d-mist)]">{f.a}</AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-          <Accordion type="single" collapsible>
-            {FAQ_RIGHT.map((f, i) => (
-              <AccordionItem key={i} value={`r-${i}`} className="border-[var(--d-hair)]">
-                <AccordionTrigger className="text-[var(--d-ivory)] hover:no-underline">{f.q}</AccordionTrigger>
-                <AccordionContent className="text-[var(--d-mist)]">{f.a}</AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </div>
+    <section className="border-t border-[var(--d-hair)] bg-[var(--d-forest)] py-20 text-[var(--d-ivory)] overflow-hidden">
+      <div className="container mb-10 max-w-2xl">
+        <div className="text-xs uppercase tracking-[0.2em] text-[var(--d-brick-lo)]" style={{ fontFamily: 'var(--font-plex-mono)' }}>FAQ</div>
+        <h3 className="mt-3 font-[800] tracking-tight" style={{ fontFamily: 'var(--font-archivo)', fontSize: 'clamp(28px, 4vw, 44px)' }}>Two lanes. Same answers either way.</h3>
+      </div>
+      <div className="space-y-4">
+        <DMarquee speed={48}>
+          {FAQ_LEFT.map((f, i) => <FaqCard key={i} f={f} />)}
+        </DMarquee>
+        <DMarquee speed={54} reverse>
+          {FAQ_RIGHT.map((f, i) => <FaqCard key={i} f={f} />)}
+        </DMarquee>
       </div>
     </section>
+  );
+}
+
+function FaqCard({ f }) {
+  return (
+    <details className="group mx-2 w-[320px] shrink-0 rounded-xl border border-[var(--d-hair)] bg-[var(--d-forest-2)] p-4 [&_summary::-webkit-details-marker]:hidden">
+      <summary className="cursor-pointer list-none text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--d-brick)]">
+        {f.q}
+      </summary>
+      <p className="mt-2 text-sm text-[var(--d-mist)]">{f.a}</p>
+    </details>
   );
 }
 
