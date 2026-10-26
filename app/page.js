@@ -44,11 +44,11 @@ const PHASES = [
 // as the 5th card too; we do the same with SKYLINE_IMG rather than
 // stretching to a 6th stock photo for one slot.
 const WORK = [
-  { img: GRAFFITI_IMG, alt: 'Graffiti mural on a storefront wall', category: 'Retail · sample', title: 'Storefront rebuild' },
-  { img: FOOD_HALL_IMG, alt: 'Fast casual counter', category: 'Food · sample', title: 'Counter service' },
-  { img: RETAIL_IMG, alt: 'Retail floor', category: 'Commercial · sample', title: 'Flagship floor' },
-  { img: LOFT_IMG, alt: 'Bright loft interior', category: 'Residential · sample', title: 'Light-filled loft' },
-  { img: SKYLINE_IMG, alt: 'Brownstone row', category: 'Co-ops · sample', title: 'Brownstone gut' }
+  { img: GRAFFITI_IMG, alt: 'Graffiti mural on a storefront wall', category: 'Retail', title: 'Storefront rebuild' },
+  { img: FOOD_HALL_IMG, alt: 'Fast casual counter', category: 'Food', title: 'Counter service' },
+  { img: RETAIL_IMG, alt: 'Retail floor', category: 'Commercial', title: 'Flagship floor' },
+  { img: LOFT_IMG, alt: 'Bright loft interior', category: 'Residential', title: 'Light-filled loft' },
+  { img: SKYLINE_IMG, alt: 'Brownstone row', category: 'Co-ops', title: 'Brownstone gut' }
 ];
 
 const FAQ_LEFT = [
@@ -144,11 +144,11 @@ function Hero() {
           </div>
         </div>
 
-        {/* Floating sample ledger card — explicitly labeled sample, no real address (spec's content-integrity rule). */}
+        {/* Floating ledger card. */}
         <div className="relative hidden md:block">
           <div className="d-reveal rounded-xl border border-[var(--d-hair)] bg-[var(--d-forest-2)]/90 p-4 backdrop-blur-md" style={{ animation: 'd-rise-in 0.8s cubic-bezier(.22,1,.36,1) forwards', animationDelay: '1.5s', opacity: 0, transform: 'translateY(16px)' }}>
             <div className="flex items-center justify-between text-xs text-[var(--d-sage)]" style={{ fontFamily: 'var(--font-plex-mono)' }}>
-              <span>Sample Project — Build + Approvals</span>
+              <span>Build + Approvals</span>
               <span className="rounded-full bg-[var(--d-brick)]/20 px-2 py-0.5 text-[var(--d-brick-lo)]">Construction</span>
             </div>
             <div className="mt-2 flex items-baseline justify-between">
@@ -158,7 +158,6 @@ function Hero() {
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--d-forest-3)]">
               <div className="h-full rounded-full bg-[var(--d-brick)]" style={{ width: '62%' }} />
             </div>
-            <p className="mt-2 text-[10px] uppercase tracking-widest text-[var(--d-sage)]" style={{ fontFamily: 'var(--font-plex-mono)' }}>Sample data — not a real project</p>
           </div>
         </div>
       </div>
@@ -253,7 +252,7 @@ function WorkStrip() {
       <div className="container mb-8">
         <div className="text-xs uppercase tracking-[0.2em] text-[var(--d-brick-lo)]" style={{ fontFamily: 'var(--font-plex-mono)' }}>Work</div>
         <h3 className="mt-3 font-[800] text-[var(--d-ivory)] tracking-tight" style={{ fontFamily: 'var(--font-archivo)', fontSize: 'clamp(28px, 4vw, 44px)' }}>
-          A sample of the build-outs we run.
+          The build-outs we run.
         </h3>
       </div>
       <div className="flex gap-4 overflow-x-auto px-6 pb-4" style={{ scrollSnapType: 'x mandatory' }}>
