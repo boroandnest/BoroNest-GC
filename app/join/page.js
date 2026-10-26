@@ -18,11 +18,11 @@ import DFooter from '@/components/redesign/d-footer';
 import { ROLE_SCHEMAS } from '@/lib/role-schemas';
 
 const ROLES = [
-  { key: 'client', title: 'Client', icon: Building2, tag: 'Owner / Tenant', desc: 'You have a NYC space (commercial or residential) that needs a build-out. Get a GMP ceiling and a dedicated PM.' },
-  { key: 'management', title: 'Management Company', icon: BarChart3, tag: 'Portfolio Ops', desc: 'You manage buildings and want portfolio-wide visibility on TI disbursements and every active project.' },
-  { key: 'building-rep', title: 'Building Rep / Board', icon: ShieldCheck, tag: 'Super / Landlord / Board', desc: 'Supers, property managers, landlord reps, and co-op / condo board members. Manage inspections and access.' },
-  { key: 'expediter', title: 'Expediter', icon: ClipboardCheck, tag: 'Permits Specialist', desc: 'You file DOB permits and want a shared queue with all our active project docs.' },
-  { key: 'subcontractor', title: 'Subcontractor', icon: Hammer, tag: 'Trade Professional', desc: 'You are a licensed trade. Get bid invitations and 48-hour milestone payments after sign-off.' }
+  { key: 'client', title: 'Client', icon: Building2, desc: 'You have a NYC space (commercial or residential) that needs a build-out. Get a GMP ceiling and a dedicated PM.' },
+  { key: 'management', title: 'Management Company', icon: BarChart3, desc: 'You manage buildings and want portfolio-wide visibility on TI disbursements and every active project.' },
+  { key: 'building-rep', title: 'Building Rep / Board', icon: ShieldCheck, desc: 'Supers, property managers, landlord reps, and co-op / condo board members. Manage inspections and access.' },
+  { key: 'expediter', title: 'Expediter', icon: ClipboardCheck, desc: 'You file DOB permits and want a shared queue with all our active project docs.' },
+  { key: 'subcontractor', title: 'Subcontractor', icon: Hammer, desc: 'You are a licensed trade. Get bid invitations and 48-hour milestone payments after sign-off.' }
 ];
 
 export default function JoinPage() {
@@ -43,11 +43,8 @@ export default function JoinPage() {
               const isInstant = schema?.mode === 'instant';
               return (
                 <Link key={r.key} href={`/join/${r.key}`} className="group relative flex h-full flex-col rounded-xl border border-[var(--d-hair)] bg-[var(--d-forest-2)] p-6 transition-all hover:border-[var(--d-brick)] hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--d-brick)]">
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="grid h-11 w-11 place-items-center rounded-lg bg-[var(--d-brick)]/15 text-[var(--d-brick-lo)]">
-                      <r.icon className="h-5 w-5" />
-                    </div>
-                    <span className="text-[10px] uppercase tracking-widest text-[var(--d-sage)]" style={{ fontFamily: 'var(--font-plex-mono)' }}>{r.tag}</span>
+                  <div className="mb-4 grid h-11 w-11 place-items-center rounded-lg bg-[var(--d-brick)]/15 text-[var(--d-brick-lo)]">
+                    <r.icon className="h-5 w-5" />
                   </div>
                   <div className="text-lg font-semibold" style={{ fontFamily: 'var(--font-archivo)' }}>{r.title}</div>
                   <p className="mt-2 flex-1 text-sm text-[var(--d-mist)]">{r.desc}</p>
