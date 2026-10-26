@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import SiteNav from '@/components/site-nav';
+import DNav from '@/components/redesign/d-nav';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -68,9 +69,13 @@ export default function RoleDashboard() {
   const totalSpend = projects.reduce((a, p) => a + (p.actualSpend || 0), 0);
   const avgProgress = projects.length ? Math.round(projects.reduce((a, p) => a + (p.percentComplete || 0), 0) / projects.length) : 0;
 
+  // Redesign Direction D §7 (D-Screens §04): the partner portal is the
+  // trade-partner's dashboard. Only subcontractor gets the new forest-dark
+  // nav here — this route is shared by all 5 roles, and client/management/
+  // building-rep dashboards aren't one of the spec's named screens.
   return (
     <>
-      <SiteNav />
+      {role === 'subcontractor' ? <DNav /> : <SiteNav />}
       <div className="container py-8">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -486,16 +491,22 @@ function SubcontractorView({ projects, user }) {
     { id: 2, project: 'Noho Loft — Gut Reno', trade: 'HVAC', deadline: 'Sep 14', bidAmount: '$26–32K est' }
   ];
 
+  // Redesign Direction D §7: "Light surface inside the forest shell" — the
+  // nav above is forest-dark (page-level conditional), this content stays
+  // the light --d-paper product surface the spec calls for, not a dark
+  // rewrite of the whole dashboard.
   return (
     <div className="space-y-6">
+      {/* Certificate card */}
       {insuranceWarn && (
-        <div className="flex items-center gap-3 rounded-lg border border-sand bg-sand/20 p-4">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-sand-ink" />
-          <div className="text-sm"><strong>Insurance expiring in {daysUntilExpire} days.</strong> Renew to keep Platinum tier and bid access.</div>
+        <div className="flex items-center gap-3 rounded-lg border p-4" style={{ borderColor: 'var(--d-review)', backgroundColor: 'color-mix(in srgb, var(--d-review) 12%, var(--d-paper))' }}>
+          <AlertTriangle className="h-5 w-5 shrink-0" style={{ color: 'var(--d-review)' }} />
+          <div className="text-sm" style={{ color: 'var(--d-ink)' }}><strong>Insurance expiring in {daysUntilExpire} days.</strong> Renew to keep Platinum tier and bid access.</div>
           <Button size="sm" variant="outline" className="ml-auto">Upload renewal</Button>
         </div>
       )}
 
+      {/* Four KPI tiles */}
       <div className="grid gap-4 md:grid-cols-4">
         <StatCard icon={Hammer} label="Active Jobs" value={jobs.length} tone="primary" />
         <StatCard icon={DollarSign} label="Pending Payments" value="$10,500" sub="48hr release" tone="success" />
@@ -503,6 +514,7 @@ function SubcontractorView({ projects, user }) {
         <StatCard icon={ShieldCheck} label="Bid Invitations" value={bidInvitations.length} sub="Awaiting response" />
       </div>
 
+      {/* Milestone timeline: Submitted -> Verified -> Payout queued -> Paid. */}
       <Card>
         <CardHeader><CardTitle className="text-base">48-Hour Milestone Payments</CardTitle><CardDescription>Payment releases within 48 hours of PM sign-off + your confirmation.</CardDescription></CardHeader>
         <CardContent className="space-y-6">
@@ -522,13 +534,14 @@ function SubcontractorView({ projects, user }) {
                       <PaymentDot status={m.status} />
                       <div>
                         <div className="font-medium">{m.name}</div>
+                        {/* Status is a word plus a color, never color alone. */}
                         <div className="text-xs text-muted-foreground">{paymentLabel(m.status)}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <div className="font-semibold">${m.payment.toLocaleString()}</div>
-                        <div className="text-xs text-muted-foreground">{m.paid ? 'Paid' : m.status === 'awaiting_confirmation' ? 'Awaiting confirm' : 'Pending'}</div>
+                        <div className="text-xs text-muted-foreground">{m.paid ? 'Released' : 'Not yet released'}</div>
                       </div>
                       {m.status === 'awaiting_confirmation' && <Button size="sm">Confirm</Button>}
                     </div>
@@ -561,10 +574,23 @@ function SubcontractorView({ projects, user }) {
   );
 }
 
+// Redesign Direction D §7 — the four milestone-payment stages the spec
+// names (Submitted -> Verified -> Payout queued -> Paid), mapped onto the
+// existing status keys so nothing upstream changes, only the label/color
+// a trade partner reads. "not_started" meant the same thing as "upcoming"
+// in the old copy; kept as an alias rather than a new state.
+const MILESTONE_STAGE = {
+  upcoming:              { label: 'Submitted',      color: 'var(--d-draft)' },
+  not_started:           { label: 'Submitted',      color: 'var(--d-draft)' },
+  in_progress:           { label: 'Verified',       color: 'var(--d-brick)' },
+  awaiting_confirmation: { label: 'Payout queued',  color: 'var(--d-review)' },
+  complete:              { label: 'Paid',           color: 'var(--d-ok)' }
+};
+
 function PaymentDot({ status }) {
-  const map = { complete: 'bg-forest', awaiting_confirmation: 'bg-sand', in_progress: 'bg-primary', upcoming: 'bg-muted', not_started: 'bg-muted' };
-  return <div className={`h-2.5 w-2.5 rounded-full ${map[status] || 'bg-muted'} ${status === 'in_progress' ? 'animate-pulse' : ''}`} />;
+  const stage = MILESTONE_STAGE[status];
+  return <div className={`h-2.5 w-2.5 rounded-full ${status === 'in_progress' ? 'animate-pulse' : ''}`} style={{ backgroundColor: stage?.color || 'var(--d-draft)' }} />;
 }
 function paymentLabel(s) {
-  return { complete: 'Payment released', awaiting_confirmation: 'PM signed off — confirm to release', in_progress: 'Work in progress', upcoming: 'Not started' }[s] || s;
+  return MILESTONE_STAGE[s]?.label || s;
 }
