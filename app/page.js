@@ -8,7 +8,7 @@
 // conversion path, not filler — flagged for review in the PR body.
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Building2, Hammer, ShieldCheck, ClipboardCheck, BarChart3 } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import DNav from '@/components/redesign/d-nav';
 import DFooter from '@/components/redesign/d-footer';
 import DMarquee from '@/components/redesign/d-marquee';
@@ -22,6 +22,10 @@ const SKYLINE_IMG = '/redesign/skyline.webp';     // golden-hour NYC skyline —
 const GRAFFITI_IMG = '/redesign/graffiti.webp';
 const FOOD_HALL_IMG = '/redesign/food-hall.webp';
 const RETAIL_IMG = '/redesign/retail.webp';
+// Not yet on disk — re-uploaded as a pasted image with no retrievable file
+// path, so it couldn't be copied into public/redesign/ this pass. Card 4
+// below will 404 on this image until public/redesign/loft.webp exists.
+const LOFT_IMG = '/redesign/loft.webp';
 
 const TICKER = ['Boutique Retail', 'Coffee / Café', 'Fast Casual', 'Bar / Lounge', 'Full-Service Restaurant', 'Medical / Specialized', 'Fitness', 'Office'];
 
@@ -35,18 +39,16 @@ const PHASES = [
   { n: '07', label: 'Close-Out', text: 'DOB sign-off, certificate of occupancy, final reconciliation.' }
 ];
 
+// Matches the D-Home design reference's work strip exactly — 5 cards,
+// same category/title pairs. The reference reuses its letter-window photo
+// as the 5th card too; we do the same with SKYLINE_IMG rather than
+// stretching to a 6th stock photo for one slot.
 const WORK = [
-  { img: GRAFFITI_IMG, title: 'Sample Project — Retail Storefront', meta: 'Reference imagery' },
-  { img: FOOD_HALL_IMG, title: 'Sample Project — Food Hall Build-Out', meta: 'Reference imagery' },
-  { img: RETAIL_IMG, title: 'Sample Project — Retail Fit-Out', meta: 'Reference imagery' }
-];
-
-const ROLES = [
-  { key: 'client', title: 'Clients', desc: 'Commercial tenants + residential owners. Know your ceiling before a nail is driven.', icon: Building2 },
-  { key: 'management', title: 'Management Cos.', desc: 'Portfolio-wide visibility on every active build-out and TI disbursement.', icon: BarChart3 },
-  { key: 'building-rep', title: 'Building Reps', desc: 'Inspection scheduling, violation tracking, access approvals — all in one queue.', icon: ShieldCheck },
-  { key: 'expediter', title: 'Expediters', desc: 'Filing status tracker, DOB inspection calendar, invoice submission portal.', icon: ClipboardCheck },
-  { key: 'subcontractor', title: 'Subcontractors', desc: '48-hour milestone payments, bid invitations, tiered performance status.', icon: Hammer }
+  { img: GRAFFITI_IMG, alt: 'Graffiti mural on a storefront wall', category: 'Retail · sample', title: 'Storefront rebuild' },
+  { img: FOOD_HALL_IMG, alt: 'Fast casual counter', category: 'Food · sample', title: 'Counter service' },
+  { img: RETAIL_IMG, alt: 'Retail floor', category: 'Commercial · sample', title: 'Flagship floor' },
+  { img: LOFT_IMG, alt: 'Bright loft interior', category: 'Residential · sample', title: 'Light-filled loft' },
+  { img: SKYLINE_IMG, alt: 'Brownstone row', category: 'Co-ops · sample', title: 'Brownstone gut' }
 ];
 
 const FAQ_LEFT = [
@@ -70,7 +72,6 @@ export default function Home() {
       <StickyPhases />
       <WorkStrip />
       <LedgerProof />
-      <Roles />
       <FaqLanes />
       <CtaStrip />
       <DFooter />
@@ -91,7 +92,7 @@ function Hero() {
       <div className="absolute inset-0">
         <Image
           src={HERO_IMG}
-          alt="Warm-toned NYC build-out interior"
+          alt="Warm, crowded bar interior with a pressed-tin ceiling, reference photograph"
           fill
           priority
           sizes="100vw"
@@ -264,11 +265,14 @@ function WorkStrip() {
             style={{ scrollSnapAlign: 'start' }}
           >
             <div className="relative aspect-[4/5] overflow-hidden">
-              <Image src={w.img} alt={w.title} fill sizes="280px" style={{ objectFit: 'cover' }} className="transition-transform duration-300 group-hover:scale-[1.04]" />
+              <Image src={w.img} alt={w.alt} fill sizes="280px" style={{ objectFit: 'cover' }} className="transition-transform duration-300 group-hover:scale-[1.04]" />
             </div>
-            <div className="bg-[var(--d-forest-2)] p-3 text-[var(--d-ivory)]">
-              <div className="text-sm font-semibold">{w.title}</div>
-              <div className="text-xs text-[var(--d-sage)]">{w.meta}</div>
+            <div className="flex items-center justify-between bg-[var(--d-forest-2)] p-3 text-[var(--d-ivory)]">
+              <div>
+                <div className="text-xs" style={{ color: 'var(--d-brick-lo)', fontFamily: 'var(--font-plex-mono)' }}>{w.category}</div>
+                <div className="text-sm font-semibold">{w.title}</div>
+              </div>
+              <ArrowRight className="h-4 w-4 shrink-0 text-[var(--d-sage)]" aria-hidden="true" />
             </div>
           </Link>
         ))}
@@ -313,31 +317,6 @@ function Ledger({ value, label }) {
       <div className="font-[900] tracking-tight" style={{ fontFamily: 'var(--font-archivo)', fontSize: 'clamp(32px, 4vw, 56px)' }}>{value}</div>
       <div className="mt-1 text-xs uppercase tracking-widest text-[var(--d-sage)]" style={{ fontFamily: 'var(--font-plex-mono)' }}>{label}</div>
     </div>
-  );
-}
-
-function Roles() {
-  return (
-    <section className="border-t border-[var(--d-hair)] bg-[var(--d-forest-3)] py-20 text-[var(--d-ivory)]">
-      <div className="container">
-        <div className="mb-10 max-w-2xl">
-          <div className="text-xs uppercase tracking-[0.2em] text-[var(--d-brick-lo)]" style={{ fontFamily: 'var(--font-plex-mono)' }}>Roles</div>
-          <h3 className="mt-3 font-[800] tracking-tight" style={{ fontFamily: 'var(--font-archivo)', fontSize: 'clamp(28px, 4vw, 44px)' }}>One platform, five personas.</h3>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          {ROLES.map(r => (
-            <Link key={r.key} href={`/join/${r.key}`} className="group relative flex flex-col rounded-xl border border-[var(--d-hair)] bg-[var(--d-forest-2)] p-6 transition-all hover:border-[var(--d-brick)] hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--d-brick)]">
-              <div className="mb-4 grid h-10 w-10 place-items-center rounded-lg bg-[var(--d-brick)]/15 text-[var(--d-brick-lo)]">
-                <r.icon className="h-5 w-5" />
-              </div>
-              <div className="text-base font-semibold">{r.title}</div>
-              <p className="mt-2 flex-1 text-sm text-[var(--d-mist)]">{r.desc}</p>
-              <div className="mt-4 inline-flex items-center text-sm font-medium" style={{ color: 'var(--d-brick-lo)' }}>Apply <ArrowRight className="ml-1 h-3.5 w-3.5 transition-transform group-hover:translate-x-1" /></div>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </section>
   );
 }
 
