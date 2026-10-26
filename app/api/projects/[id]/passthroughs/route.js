@@ -20,7 +20,7 @@ export const POST = route(async ({ request, user, params }) => {
   const f = await request.formData();
   const file = f.get('invoice');
   if (!file || typeof file === 'string') throw new HttpError(422, 'Attach the vendor invoice');
-  const bad = checkUpload(file);
+  const bad = await checkUpload(file);
   if (bad) throw new HttpError(422, bad);
   const vendor = String(f.get('vendor') || '').trim(), description = String(f.get('description') || '').trim();
   const periodStart = String(f.get('periodStart') || '');

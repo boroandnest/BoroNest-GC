@@ -62,7 +62,7 @@ export const POST = route(async ({ request, user, params }) => {
   const file = form.get('file');
   if (!file || typeof file === 'string') throw new HttpError(422, 'Attach the certificate (PDF or image)');
   if (file.size > 15 * 1024 * 1024) throw new HttpError(422, 'File exceeds 15 MB');
-  const typeErr = checkUpload(file);
+  const typeErr = await checkUpload(file);
   if (typeErr || !['.pdf', '.png', '.jpg', '.jpeg'].includes(path.extname(file.name || '').toLowerCase())) throw new HttpError(422, typeErr || 'Certificates must be PDF, PNG or JPG');
   const expiresOn = String(form.get('expiresOn') || '');
   const effectiveOn = String(form.get('effectiveOn') || '');

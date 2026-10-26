@@ -1,5 +1,7 @@
 const nextConfig = {
   output: 'standalone',
+  // SECURITY_HARDENING.md C6 — stop announcing the framework in every response.
+  poweredByHeader: false,
   images: {
     unoptimized: true,
     remotePatterns: [
@@ -31,8 +33,24 @@ const nextConfig = {
       { key: "X-Content-Type-Options", value: "nosniff" },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+      // SECURITY_HARDENING.md C3 — staged as Report-Only per the doc's own
+      // caution: this is a real policy shipped for visibility first, not yet
+      // enforced (frame-ancestors above is untouched; see its own comment on
+      // why — Emergent's preview iframe). Tighten to a blocking CSP once a
+      // report period confirms nothing legitimate trips it.
+      { key: "Content-Security-Policy-Report-Only",
+        value: "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self';" },
     ];
-    const rules = [{ source: "/(.*)", headers: security }];
+    const rules = [
+      { source: "/(.*)", headers: security },
+      // SECURITY_HARDENING.md C7 — these pages are per-visitor/authenticated;
+      // the home page's long edge cache (fine for marketing) must never
+      // apply here.
+      { source: "/login", headers: [{ key: "Cache-Control", value: "no-store" }] },
+      { source: "/dashboard/:path*", headers: [{ key: "Cache-Control", value: "no-store" }] },
+      { source: "/admin/:path*", headers: [{ key: "Cache-Control", value: "no-store" }] },
+      { source: "/api/:path*", headers: [{ key: "Cache-Control", value: "no-store" }] },
+    ];
     // Cross-origin API access only when explicitly configured (same-origin calls need none).
     if (process.env.CORS_ORIGINS && process.env.CORS_ORIGINS !== '*') {
       rules.push({

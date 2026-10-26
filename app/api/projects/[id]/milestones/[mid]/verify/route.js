@@ -17,7 +17,7 @@ export const POST = route(async ({ request, user, params }) => {
   if (ct.includes('multipart/form-data')) {
     const form = await request.formData();
     for (const f of form.getAll('photos').filter(x => typeof x !== 'string').slice(0, 20)) {
-      const bad = checkUpload(f, { imagesOnly: true });
+      const bad = await checkUpload(f, { imagesOnly: true });
       if (bad) throw new HttpError(422, bad);
       const saved = await saveUploadedFile(f, `projects/${project.id}/milestones/${params.mid}`, { photo: true, keepOriginal: true });
       await (await getCollection('files')).insertOne({ ...saved, kind: 'photo', projectId: project.id, ownerUserId: user.id, milestoneId: params.mid, uploadedAt: new Date() });

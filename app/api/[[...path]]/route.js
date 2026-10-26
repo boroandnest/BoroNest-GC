@@ -150,8 +150,9 @@ async function handle(request, method) {
     const { segments, url } = parsePath(request);
     const [root, ...rest] = segments;
 
-    // ROOT: /api  health
-    if (!root) return j({ ok: true, service: 'boro-nest-api' });
+    // ROOT: /api  health — no service name (SECURITY_HARDENING.md C6: don't
+    // disclose which app/stack is behind the API to an unauthenticated caller).
+    if (!root) return j({ ok: true });
 
     // ============= AUTH =============
     if (root === 'auth') {
@@ -577,11 +578,16 @@ async function handle(request, method) {
         if (!staff && !isOwner) return err('Only project owners or staff can manage share links', 403);
         if (method === 'POST') {
           const token = uuid().replace(/-/g, '') + uuid().replace(/-/g, '').slice(0, 8);
-          await projects.updateOne({ id: pid }, { $set: { shareToken: token, shareCreatedAt: new Date() } });
-          return j({ shareToken: token });
+          // SECURITY_HARDENING.md A2 — a board portal link used to live forever
+          // until someone remembered to revoke it. Default 90-day expiry;
+          // re-issuing (POST again) resets the clock the same way revoking +
+          // recreating would, just without the extra round trip.
+          const shareExpiresAt = new Date(Date.now() + 90 * 24 * 3600 * 1000);
+          await projects.updateOne({ id: pid }, { $set: { shareToken: token, shareCreatedAt: new Date(), shareExpiresAt } });
+          return j({ shareToken: token, shareExpiresAt });
         }
         if (method === 'DELETE') {
-          await projects.updateOne({ id: pid }, { $unset: { shareToken: '', shareCreatedAt: '' } });
+          await projects.updateOne({ id: pid }, { $unset: { shareToken: '', shareCreatedAt: '', shareExpiresAt: '' } });
           return j({ ok: true });
         }
       }
@@ -678,7 +684,7 @@ async function handle(request, method) {
       if (!file || typeof file === 'string') return err('file required');
       if (file.size > MAX_UPLOAD) return err('File exceeds 25 MB limit');
       const kind = ['document', 'photo', 'insurance'].includes(form.get('kind')) ? form.get('kind') : 'document';
-      const typeError = checkUpload(file, { imagesOnly: kind === 'photo' });
+      const typeError = await checkUpload(file, { imagesOnly: kind === 'photo' });
       if (typeError) return err(typeError);
       const files = await getCollection('files');
 
@@ -737,7 +743,7 @@ async function handle(request, method) {
       else if (rec.projectId) {
         const p = await (await getCollection('projects')).findOne({ id: rec.projectId });
         const portal = url.searchParams.get('portal');
-        if (p && portal && p.shareToken && portal === p.shareToken) {
+        if (p && portal && p.shareToken && portal === p.shareToken && !(p.shareExpiresAt && new Date(p.shareExpiresAt) < new Date())) {
           if (rec.kind === 'photo') allowed = true;
           else {
             const doc = await (await getCollection('documents')).findOne({ url: `/api/files/${rec.id}` });
@@ -774,7 +780,7 @@ async function handle(request, method) {
     if (root === 'portal' && rest[0] && method === 'GET') {
       const token = rest[0];
       const p = await (await getCollection('projects')).findOne({ shareToken: token });
-      if (!p) return err('Invalid or expired share link', 404);
+      if (!p || (p.shareExpiresAt && new Date(p.shareExpiresAt) < new Date())) return err('Invalid or expired share link', 404);
       const withPortal = (u) => (u && u.startsWith('/api/files/') ? `${u}?portal=${encodeURIComponent(token)}` : u);
       const [milestones, documents, photos, changeOrders] = await Promise.all([
         (await getCollection('milestones')).find({ projectId: p.id }).sort({ dueDate: 1 }).limit(50).toArray(),
