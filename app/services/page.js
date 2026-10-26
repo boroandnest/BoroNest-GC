@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import SiteNav from '@/components/site-nav';
-import SiteFooter from '@/components/site-footer';
+import DNav from '@/components/redesign/d-nav';
+import DFooter from '@/components/redesign/d-footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Building2, Home, ShieldCheck, DollarSign, CheckCircle2 } from 'lucide-react';
@@ -8,7 +8,7 @@ import { Building2, Home, ShieldCheck, DollarSign, CheckCircle2 } from 'lucide-r
 export default function ServicesPage() {
   return (
     <>
-      <SiteNav />
+      <DNav />
       <div className="container py-16 md:py-24">
         <div className="mx-auto max-w-3xl text-center">
           <div className="text-xs font-semibold uppercase tracking-widest text-primary">Services</div>
@@ -37,7 +37,7 @@ export default function ServicesPage() {
           </div>
         </div>
       </div>
-      <SiteFooter />
+      <DFooter />
     </>
   );
 }

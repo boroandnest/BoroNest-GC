@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import SiteNav from '@/components/site-nav';
-import SiteFooter from '@/components/site-footer';
+import DNav from '@/components/redesign/d-nav';
+import DFooter from '@/components/redesign/d-footer';
 import { toast } from 'sonner';
 import { CheckCircle2, Calendar, Clock, Shield, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -35,7 +35,7 @@ export default function BookCallPage() {
   if (submitted) {
     return (
       <>
-        <SiteNav />
+        <DNav />
         <div className="container flex min-h-[70vh] items-center justify-center py-16">
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-md text-center">
             <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-primary/15"><CheckCircle2 className="h-8 w-8 text-primary" /></div>
@@ -49,7 +49,7 @@ export default function BookCallPage() {
 
   return (
     <>
-      <SiteNav />
+      <DNav />
       <div className="container grid gap-12 py-12 md:grid-cols-2 md:py-20">
         <div>
           <div className="text-xs font-semibold uppercase tracking-widest text-primary">Book a Scoping Call</div>
@@ -109,7 +109,7 @@ export default function BookCallPage() {
           </form>
         </div>
       </div>
-      <SiteFooter />
+      <DFooter />
     </>
   );
 }
