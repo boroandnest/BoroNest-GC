@@ -8,7 +8,7 @@
 // renders once, statically, no animation.
 import { useEffect, useRef, useState } from 'react';
 
-export default function DMarquee({ children, speed = 24, className = '' }) {
+export default function DMarquee({ children, speed = 24, reverse = false, className = '' }) {
   const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
@@ -24,12 +24,15 @@ export default function DMarquee({ children, speed = 24, className = '' }) {
   }
 
   return (
-    <div className={`d-marquee-track flex w-max ${className}`} style={{ '--d-marquee-speed': `${speed}s` }}>
+    <div className={`d-marquee-track flex w-max ${reverse ? 'd-marquee-reverse' : ''} ${className}`} style={{ '--d-marquee-speed': `${speed}s` }}>
       <div className="flex shrink-0">{children}</div>
       <div aria-hidden="true" className="flex shrink-0">{children}</div>
       <style jsx>{`
         .d-marquee-track {
           animation: d-marquee var(--d-marquee-speed) linear infinite;
+        }
+        .d-marquee-reverse {
+          animation-name: d-marquee-rev;
         }
         .d-marquee-track:hover,
         .d-marquee-track:focus-within {
@@ -38,6 +41,10 @@ export default function DMarquee({ children, speed = 24, className = '' }) {
         @keyframes d-marquee {
           from { transform: translateX(0); }
           to { transform: translateX(-50%); }
+        }
+        @keyframes d-marquee-rev {
+          from { transform: translateX(-50%); }
+          to { transform: translateX(0); }
         }
       `}</style>
     </div>
