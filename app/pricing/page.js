@@ -9,8 +9,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, X, Loader2, ArrowRight } from 'lucide-react';
-import SiteNav from '@/components/site-nav';
-import SiteFooter from '@/components/site-footer';
+import DNav from '@/components/redesign/d-nav';
+import DFooter from '@/components/redesign/d-footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
@@ -35,7 +35,7 @@ export default function PricingPage() {
 
   return (
     <>
-      <SiteNav />
+      <DNav />
       <div className="container max-w-6xl py-16 sm:py-20">
         <div className="mx-auto max-w-2xl text-center">
           <SectionLabel className="justify-center">Build Packages</SectionLabel>
@@ -75,7 +75,7 @@ export default function PricingPage() {
           </Accordion>
         </div>
       </div>
-      <SiteFooter />
+      <DFooter />
     </>
   );
 }

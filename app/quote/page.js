@@ -5,7 +5,7 @@
 // before asking for the email" is the whole point of this page.
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import SiteNav from '@/components/site-nav';
+import DNav from '@/components/redesign/d-nav';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -95,12 +95,12 @@ function Quote() {
     else toast.error(d.error || 'Could not save');
   }
 
-  if (!meta) return <><SiteNav /><div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div></>;
+  if (!meta) return <><DNav /><div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div></>;
 
   if (!meta.available) {
     return (
       <>
-        <SiteNav />
+        <DNav />
         <div className="container max-w-xl py-16 text-center">
           <h1 className="text-2xl tracking-tight">The calculator is temporarily unavailable</h1>
           <p className="mt-2 text-sm text-muted-foreground">Please reach out directly and we'll get you a number.</p>
@@ -115,7 +115,7 @@ function Quote() {
 
   return (
     <>
-      <SiteNav />
+      <DNav />
       {/* pb-28: the Ask Nest widget (components/nest-chat.js) is fixed
           bottom-5 right-5 — on a page this short, without extra bottom
           padding it sits directly on top of the primary CTA button. */}

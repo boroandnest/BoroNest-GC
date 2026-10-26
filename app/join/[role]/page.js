@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { ROLE_SCHEMAS } from '@/lib/role-schemas';
-import SiteNav from '@/components/site-nav';
+import DNav from '@/components/redesign/d-nav';
 import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
@@ -44,7 +44,7 @@ export default function OnboardingWizard() {
   if (!schema) {
     return (
       <>
-        <SiteNav />
+        <DNav />
         <div className="container py-24 text-center">
           <h1 className="text-2xl font-bold">Unknown role: {role}</h1>
           <Button asChild className="mt-6"><Link href="/join">Back to role selection</Link></Button>
@@ -116,7 +116,7 @@ export default function OnboardingWizard() {
   if (step === schema.steps.length) {
     return (
       <>
-        <SiteNav />
+        <DNav />
         <div className="container flex min-h-[60vh] items-center justify-center py-16">
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
             <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-primary/15">
@@ -140,7 +140,7 @@ export default function OnboardingWizard() {
 
   return (
     <>
-      <SiteNav />
+      <DNav />
       <div className="container max-w-2xl py-12">
         <div className="mb-8">
           <Link href="/join" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3.5 w-3.5" /> Choose a different role</Link>

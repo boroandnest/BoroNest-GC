@@ -5,8 +5,8 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ArrowRight, Building2, Hammer, ShieldCheck, Clock3, DollarSign, ClipboardCheck, Users, MessageSquare, BarChart3, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import SiteNav from '@/components/site-nav';
-import SiteFooter from '@/components/site-footer';
+import DNav from '@/components/redesign/d-nav';
+import DFooter from '@/components/redesign/d-footer';
 
 const HERO_IMG = 'https://images.pexels.com/photos/18290521/pexels-photo-18290521.jpeg?auto=compress&w=1600';
 const INTERIOR_IMG = 'https://images.unsplash.com/photo-1597498178146-3e9378203bc9?w=1200';
@@ -25,7 +25,7 @@ const PHASES = ['Discovery', 'Design', 'Permitting', 'Procurement', 'Constructio
 export default function Home() {
   return (
     <>
-      <SiteNav />
+      <DNav transparent />
 
       {/* HERO */}
       <section className="relative overflow-hidden">
@@ -183,7 +183,7 @@ export default function Home() {
         </div>
       </section>
 
-      <SiteFooter />
+      <DFooter />
     </>
   );
 }

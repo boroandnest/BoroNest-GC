@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Building2, Hammer, ShieldCheck, ClipboardCheck, BarChart3, ArrowRight, Sparkles, Clock } from 'lucide-react';
-import SiteNav from '@/components/site-nav';
-import SiteFooter from '@/components/site-footer';
+import DNav from '@/components/redesign/d-nav';
+import DFooter from '@/components/redesign/d-footer';
 import { ROLE_SCHEMAS } from '@/lib/role-schemas';
 
 const ROLES = [
@@ -18,7 +18,7 @@ const ROLES = [
 export default function JoinPage() {
   return (
     <>
-      <SiteNav />
+      <DNav />
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-grid opacity-30" />
         <div className="absolute -top-40 left-1/2 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-primary/10 blur-[120px]" />
@@ -70,7 +70,7 @@ export default function JoinPage() {
           </div>
         </div>
       </div>
-      <SiteFooter />
+      <DFooter />
     </>
   );
 }
