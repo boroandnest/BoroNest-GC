@@ -35,7 +35,7 @@ export default function InsurancePage() {
       <SiteNav />
       <div className="container max-w-5xl py-8">
         <Link href={`/projects/${id}`} className="text-sm text-muted-foreground hover:text-foreground">← Project</Link>
-        <div className="mt-4 font-mono text-[10px] uppercase tracking-[2px] text-primary">Insurance</div>
+        <div className="mt-4 font-mono text-[10px] uppercase tracking-[2px] text-[var(--d-brick-lo)]">Insurance</div>
         <h1 className="mt-1 text-3xl font-bold tracking-tight">Certificates of insurance</h1>
 
         {role === 'bn_staff' && <BuildingSetup projectId={id} requirements={requirements} onSaved={load} />}
@@ -170,7 +170,7 @@ function BuildingSetup({ projectId, requirements, onSaved }) {
   }
   return (
     <Card className="mt-6">
-      <CardHeader><CardTitle className="text-base">Building &amp; unit (staff)</CardTitle><CardDescription>Per-unit additional insured entries are resolved when you save. <Link className="text-primary hover:underline" href="/admin/buildings">Manage buildings</Link></CardDescription></CardHeader>
+      <CardHeader><CardTitle className="text-base">Building &amp; unit (staff)</CardTitle><CardDescription>Per-unit additional insured entries are resolved when you save. <Link className="text-[var(--d-brick-lo)] hover:underline" href="/admin/buildings">Manage buildings</Link></CardDescription></CardHeader>
       <CardContent>
         <form onSubmit={save} className="grid gap-3 md:grid-cols-5">
           <select value={form.buildingId} onChange={e => setForm({ ...form, buildingId: e.target.value })} className="rounded-md border border-border bg-background px-3 py-2 text-sm md:col-span-2">

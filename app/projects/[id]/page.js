@@ -92,7 +92,7 @@ export default function ProjectHub() {
                 <PhaseBadge phase={p.phase} />
                 <span className="text-xs text-muted-foreground">{p.type} · {p.subType}</span>
                 {p.code && <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{p.code}</span>}
-                {p.complianceType && <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">{p.complianceType}</span>}
+                {p.complianceType && <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--d-brick-lo)]">{p.complianceType}</span>}
               </div>
               <h1 className="mt-2 text-3xl font-bold tracking-tight">{p.name}</h1>
               <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-3.5 w-3.5" /> {p.address}</div>
@@ -145,7 +145,7 @@ export default function ProjectHub() {
                 return (
                   <div key={ph} className="flex-1">
                     <div className={`h-1.5 rounded-full ${active ? 'bg-primary' : 'bg-muted'}`} />
-                    <div className={`mt-1.5 text-[10px] font-medium uppercase tracking-wider ${i === currentIdx ? 'text-primary' : active ? 'text-foreground' : 'text-muted-foreground'}`}>{ph}</div>
+                    <div className={`mt-1.5 text-[10px] font-medium uppercase tracking-wider ${i === currentIdx ? 'text-[var(--d-brick-lo)]' : active ? 'text-foreground' : 'text-muted-foreground'}`}>{ph}</div>
                   </div>
                 );
               })}
@@ -191,7 +191,7 @@ export default function ProjectHub() {
                 <CardContent className="space-y-3">
                   {messages.slice(-4).reverse().map(m => (
                     <div key={m.id} className="flex gap-3">
-                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-bold text-primary">{(m.fromName || '?')[0]}</div>
+                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-bold text-[var(--d-brick-lo)]">{(m.fromName || '?')[0]}</div>
                       <div>
                         <div className="text-sm"><span className="font-medium">{m.fromName}</span> <span className="text-muted-foreground">· {new Date(m.createdAt).toLocaleDateString()}</span></div>
                         <div className="text-sm text-muted-foreground">{m.body}</div>
@@ -322,7 +322,7 @@ function Info({ icon: Icon, label, value }) {
 }
 
 function PhaseBadge({ phase }) {
-  return <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">{phase}</span>;
+  return <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--d-brick-lo)]">{phase}</span>;
 }
 
 function BudgetView({ project: p, projectId }) {
@@ -577,7 +577,7 @@ function MessagesView({ projectId, messages, onRefresh, viewerRole }) {
         <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
           {messages.map(m => (
             <div key={m.id} className="flex gap-3">
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-bold text-primary">{(m.fromName || '?')[0]}</div>
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-bold text-[var(--d-brick-lo)]">{(m.fromName || '?')[0]}</div>
               <div className="flex-1">
                 <div className="text-sm"><span className="font-medium">{m.fromName}</span> <span className="text-xs uppercase text-muted-foreground">· {m.fromRole}</span> <span className="text-xs text-muted-foreground">· {new Date(m.createdAt).toLocaleString()}</span>{m.audience?.length > 0 && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">Restricted</span>}</div>
                 <div className="mt-1 rounded-lg bg-background px-3 py-2 text-sm">{m.body}</div>
@@ -728,7 +728,7 @@ function TeamView({ projectId, parties, clientEmail, pmName, pmEmail, canInvite,
                 <div className="text-xs text-muted-foreground">{pmEmail} · Project Manager · Boro &amp; Nest</div>
               </div>
             </div>
-            <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">B&amp;N Staff</span>
+            <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--d-brick-lo)]">B&amp;N Staff</span>
           </div>
 
           {/* Client row */}

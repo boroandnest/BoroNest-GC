@@ -70,7 +70,7 @@ export default function BuildingRegister() {
       <SiteNav />
       <div className="container max-w-6xl py-8">
         {staff && <Link href="/admin/buildings" className="text-sm text-muted-foreground hover:text-foreground">← Buildings</Link>}
-        <div className="mt-4 font-mono text-[10px] uppercase tracking-[2px] text-primary">Violation register</div>
+        <div className="mt-4 font-mono text-[10px] uppercase tracking-[2px] text-[var(--d-brick-lo)]">Violation register</div>
         <h1 className="mt-1 text-3xl font-bold tracking-tight">{data.building.name}</h1>
         <div className="text-sm text-muted-foreground">{data.building.address}</div>
 

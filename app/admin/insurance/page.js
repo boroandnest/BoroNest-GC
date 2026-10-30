@@ -34,7 +34,7 @@ export default function InsuranceQueue() {
       <div className="container max-w-5xl py-8">
         <Link href="/admin" className="text-sm text-muted-foreground hover:text-foreground">← PM Console</Link>
         <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
-          <div><div className="font-mono text-[10px] uppercase tracking-[2px] text-primary">Insurance</div><h1 className="mt-1 text-3xl font-bold tracking-tight">Certificate queue</h1></div>
+          <div><div className="font-mono text-[10px] uppercase tracking-[2px] text-[var(--d-brick-lo)]">Insurance</div><h1 className="mt-1 text-3xl font-bold tracking-tight">Certificate queue</h1></div>
           <div className="flex gap-2">{['pending', 'verified', 'rejected', 'all'].map(s => <Button key={s} size="sm" variant={s === status ? 'default' : 'outline'} onClick={() => setStatus(s)} className="capitalize">{s}</Button>)}<Button asChild size="sm" variant="ghost"><Link href="/admin/buildings">Buildings</Link></Button></div>
         </div>
         <div className="mt-6 space-y-4">
