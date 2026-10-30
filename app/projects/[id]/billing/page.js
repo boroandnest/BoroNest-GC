@@ -45,7 +45,7 @@ export default function BillingPage() {
       <SiteNav />
       <div className="container max-w-5xl py-8">
         <Link href={`/projects/${id}`} className="text-sm text-muted-foreground hover:text-foreground">← Project</Link>
-        <div className="mt-4 font-mono text-[10px] uppercase tracking-[2px] text-primary">Billing</div>
+        <div className="mt-4 font-mono text-[10px] uppercase tracking-[2px] text-[var(--d-brick-lo)]">Billing</div>
         <h1 className="mt-1 text-3xl font-bold tracking-tight">Retainer &amp; materials</h1>
 
         {d.retainers.map(r => (

@@ -63,7 +63,7 @@ export default function EstimatePage() {
       <div className="container py-8">
         <Link href={`/projects/${p.id}`} className="text-sm text-muted-foreground hover:text-foreground">← {p.name}</Link>
         <div className="mt-4">
-          <div className="font-mono text-[10px] uppercase tracking-[2px] text-primary">{p.code || 'Project'} · GMP worksheet</div>
+          <div className="font-mono text-[10px] uppercase tracking-[2px] text-[var(--d-brick-lo)]">{p.code || 'Project'} · GMP worksheet</div>
           <h1 className="mt-1 text-3xl font-bold tracking-tight">Estimate</h1>
         </div>
 
@@ -86,7 +86,7 @@ export default function EstimatePage() {
           <CardHeader><CardTitle className="text-base">Build from template</CardTitle><CardDescription>Re-running updates existing lines in place; status, assignments and change-order blocks are kept.</CardDescription></CardHeader>
           <CardContent>
             {templates.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No templates yet. <Link className="text-primary hover:underline" href="/admin/templates">Create one</Link>.</div>
+              <div className="text-sm text-muted-foreground">No templates yet. <Link className="text-[var(--d-brick-lo)] hover:underline" href="/admin/templates">Create one</Link>.</div>
             ) : (
               <form onSubmit={instantiate} className="space-y-3">
                 <div className="flex flex-wrap gap-3">
@@ -138,7 +138,7 @@ export default function EstimatePage() {
                     <td className="p-3 text-right font-mono">{r.hasTariff ? <>{formatMoney(r.tariffExposure)}<div className="text-[10px] text-muted-foreground">{r.tariffPct}%{r.sourcingOrigin ? ` · ${r.sourcingOrigin}` : ''}</div></> : '—'}</td>
                     <td className="p-3 text-right font-mono font-semibold">{formatMoney(r.lineTotal)}</td>
                     <td className="p-3 text-xs">{[r.specifiedMfr, r.specifiedProduct].filter(Boolean).join(' — ') || '—'}</td>
-                    <td className="p-3 text-xs">{r.hasTariff && r.altDomesticMfr ? <span className="text-primary">{r.altDomesticMfr}</span> : (r.altDomesticMfr || '—')}</td>
+                    <td className="p-3 text-xs">{r.hasTariff && r.altDomesticMfr ? <span className="text-[var(--d-brick-lo)]">{r.altDomesticMfr}</span> : (r.altDomesticMfr || '—')}</td>
                   </tr>
                 ))}
               </tbody>

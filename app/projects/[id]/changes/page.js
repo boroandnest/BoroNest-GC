@@ -35,7 +35,7 @@ export default function ChangesPage() {
         <Link href={`/projects/${id}`} className="text-sm text-muted-foreground hover:text-foreground">← Project</Link>
         <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="font-mono text-[10px] uppercase tracking-[2px] text-primary">Changes</div>
+            <div className="font-mono text-[10px] uppercase tracking-[2px] text-[var(--d-brick-lo)]">Changes</div>
             <h1 className="mt-1 text-3xl font-bold tracking-tight">Change orders</h1>
             <p className="mt-1 text-sm text-muted-foreground">Nothing outside the agreed scope starts until the change is signed.</p>
           </div>

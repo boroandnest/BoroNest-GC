@@ -248,8 +248,8 @@ export default function AdminPage() {
                         {(u.profile?.license || u.profile?.licenses) && <>License: {u.profile.license || u.profile.licenses}</>}
                       </div>
                       <div className="mt-1 flex gap-3 text-xs">
-                        {u.profile?.glCert && <a className="text-primary hover:underline" href={u.profile.glCert} target="_blank" rel="noopener noreferrer">GL cert</a>}
-                        {u.profile?.wcCert && <a className="text-primary hover:underline" href={u.profile.wcCert} target="_blank" rel="noopener noreferrer">WC cert</a>}
+                        {u.profile?.glCert && <a className="text-[var(--d-brick-lo)] hover:underline" href={u.profile.glCert} target="_blank" rel="noopener noreferrer">GL cert</a>}
+                        {u.profile?.wcCert && <a className="text-[var(--d-brick-lo)] hover:underline" href={u.profile.wcCert} target="_blank" rel="noopener noreferrer">WC cert</a>}
                         {u.profile?.glExpiration && <span className="text-muted-foreground">GL exp {u.profile.glExpiration}</span>}
                       </div>
                     </div>

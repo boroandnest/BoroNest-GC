@@ -51,7 +51,7 @@ export default function BuildingsPage() {
       <div className="container max-w-5xl py-8">
         <Link href="/admin" className="text-sm text-muted-foreground hover:text-foreground">← PM Console</Link>
         <div className="mt-4 flex items-end justify-between gap-3">
-          <div><div className="font-mono text-[10px] uppercase tracking-[2px] text-primary">Buildings</div><h1 className="mt-1 text-3xl font-bold tracking-tight">Buildings &amp; COI requirements</h1></div>
+          <div><div className="font-mono text-[10px] uppercase tracking-[2px] text-[var(--d-brick-lo)]">Buildings</div><h1 className="mt-1 text-3xl font-bold tracking-tight">Buildings &amp; COI requirements</h1></div>
           <Button onClick={() => { setEditingId(null); setForm({ ...BLANK }); }}>New building</Button>
         </div>
 

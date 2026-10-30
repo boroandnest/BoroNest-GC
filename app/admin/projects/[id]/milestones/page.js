@@ -62,7 +62,7 @@ export default function MilestonesAdmin() {
       <SiteNav />
       <div className="container max-w-5xl py-8">
         <Link href={`/projects/${id}`} className="text-sm text-muted-foreground hover:text-foreground">← Project</Link>
-        <div className="mt-4 font-mono text-[10px] uppercase tracking-[2px] text-primary">Payments</div>
+        <div className="mt-4 font-mono text-[10px] uppercase tracking-[2px] text-[var(--d-brick-lo)]">Payments</div>
         <h1 className="mt-1 text-3xl font-bold tracking-tight">Milestones</h1>
         <p className="mt-1 text-sm text-muted-foreground">Verifying opens a 24-hour window for the client to dispute. After it closes, payment releases to the subcontractor's Stripe account automatically.</p>
 

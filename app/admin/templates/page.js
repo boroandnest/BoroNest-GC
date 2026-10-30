@@ -77,7 +77,7 @@ export default function TemplatesPage() {
         <Link href="/admin" className="text-sm text-muted-foreground hover:text-foreground">← PM Console</Link>
         <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="font-mono text-[10px] uppercase tracking-[2px] text-primary">Internal · pricing IP</div>
+            <div className="font-mono text-[10px] uppercase tracking-[2px] text-[var(--d-brick-lo)]">Internal · pricing IP</div>
             <h1 className="mt-1 text-3xl font-bold tracking-tight">Scope Templates</h1>
           </div>
           <Button onClick={() => { setEditing({ text: JSON.stringify(EXAMPLE, null, 2) }); setProblem(''); }}>New template</Button>
