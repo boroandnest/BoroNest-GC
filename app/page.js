@@ -8,6 +8,7 @@
 // conversion path, not filler — flagged for review in the PR body.
 import Link from 'next/link';
 import Image from 'next/image';
+import { useEffect, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import DNav from '@/components/redesign/d-nav';
 import DFooter from '@/components/redesign/d-footer';
@@ -311,15 +312,26 @@ function WorkStrip() {
 }
 
 function LedgerProof() {
+  // Admin-editable (app/admin/settings) via /api/settings/homepage. These
+  // defaults match what shipped before that existed, so nothing changes
+  // on the live page until someone actually edits a value there.
+  const [stats, setStats] = useState({ ledgerProjects: '50+', ledgerOverruns: '$0', ledgerTurnaround: '48hr' });
+  useEffect(() => {
+    fetch('/api/settings/homepage')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d) setStats(d); })
+      .catch(() => {});
+  }, []);
+
   return (
     <section className="border-t border-[var(--d-hair)] bg-[var(--d-forest)] py-20 text-[var(--d-ivory)]">
       <div className="container">
         <div className="rounded-2xl border border-[var(--d-hair)] bg-[var(--d-forest-2)] p-8">
           <div className="text-xs uppercase tracking-[0.2em] text-[var(--d-brick-lo)]" style={{ fontFamily: 'var(--font-plex-mono)' }}>The Ledger</div>
           <div className="mt-6 grid gap-8 sm:grid-cols-3">
-            <Ledger value="50+" label="Projects Delivered" />
-            <Ledger value="$0" label="Cost Overruns (GMP)" />
-            <Ledger value="48hr" label="Sub Payment Turnaround" />
+            <Ledger value={stats.ledgerProjects} label="Projects Delivered" />
+            <Ledger value={stats.ledgerOverruns} label="Cost Overruns (GMP)" />
+            <Ledger value={stats.ledgerTurnaround} label="Sub Payment Turnaround" />
           </div>
 
           {/* Equation strip — same one §4 (Pricing) carries. Reinforced
