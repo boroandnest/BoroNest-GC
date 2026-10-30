@@ -27,7 +27,8 @@ const AREAS = [
   { href: '/admin/templates', label: 'Scope templates' },
   { href: '/admin/insurance', label: 'Insurance queue', countKey: 'coisPending' },
   { href: '/admin/buildings', label: 'Buildings', countKey: 'buildings' },
-  { href: '/admin/quote', label: 'Rate card' }
+  { href: '/admin/quote', label: 'Rate card' },
+  { href: '/admin/settings', label: 'Site settings' }
 ];
 
 // The console renders figures; it never computes them. Every number below
