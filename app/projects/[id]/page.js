@@ -82,7 +82,10 @@ export default function ProjectHub() {
         <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3.5 w-3.5" /> Back to dashboard</Link>
 
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-4 rounded-2xl border border-border bg-gradient-to-br from-card via-card to-primary/5 p-6">
+        {/* UI_FIX_PLAN_4 F3 — the gradient (card -> primary/5) reduced
+            contrast unpredictably across its width; flat bg-card keeps it
+            constant. */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-4 rounded-2xl border border-border bg-card p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">

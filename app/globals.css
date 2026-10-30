@@ -251,12 +251,25 @@ html, body {
   --ring: 13 69% 52%;
 
   /* Semantic chip set (PHASE1_BUILD.md §7's ok/warn/problem/neutral/strong
-     tone system in components/brand/pill.js stays as-is — these are the
-     raw values it already composes from --forest/--sand/--alert via :root.
-     The console's own one-off status strings use these directly instead. */
+     tone system in components/brand/pill.js) — one-off status strings
+     that quote these directly instead of going through Pill. */
   --d-console-ok: 150 55% 27%;
   --d-console-review: 44 100% 24%;
   --d-console-risk: 10 67% 32%;
   --d-console-draft: 155 8% 29%;
 }
 .d-console :is(h1, h2, h3, h4) { font-family: var(--font-archivo, var(--font-display)); }
+
+/* UI_FIX_PLAN_4 F3 — components/brand/pill.js's ok/warn/problem/strong
+   tones (its "neutral" tone already goes through --muted/--muted-foreground,
+   which .d-console above already remaps, so it's unaffected) read directly
+   off --forest/--sand/--alert from :root. Those are tuned as DARK text on
+   a LIGHT (cream) page — exactly backwards inside .d-console's dark forest
+   surface, which is the literal "status pills are dark-on-dark" bug this
+   fixes. Scoped overrides, not a Pill rewrite: Pill is also still used on
+   every not-yet-redesigned light page, where the original values are
+   correct and must stay untouched. Only the default `tint` variant is
+   patched — it is the only variant live callers in the console use. */
+.d-console .bg-forest\/10.text-forest { background-color: rgba(143, 188, 169, 0.12); color: var(--d-sage); }
+.d-console .bg-sand\/25.text-sand-ink { background-color: rgba(242, 168, 142, 0.15); color: var(--d-brick-lo); }
+.d-console .bg-alert\/12.text-alert-ink { background-color: var(--d-brick); color: var(--d-ivory); }

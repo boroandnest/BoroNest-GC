@@ -65,8 +65,9 @@ const FAQ_RIGHT = [
 export default function Home() {
   return (
     <div className="d-anim">
-      <DNav transparent />
+      <DNav />
       <Hero />
+      <ProofBand />
       <Ticker />
       <LetterWindow />
       <StickyPhases />
@@ -106,8 +107,8 @@ function Hero() {
         <div className="absolute inset-0" style={{ backgroundColor: 'var(--d-forest)', mixBlendMode: 'color', opacity: 0.42 }} />
       </div>
 
-      <div className="container relative grid gap-12 py-28 md:grid-cols-[1.3fr,1fr] md:py-36">
-        <div>
+      <div className="container relative py-28 md:py-36">
+        <div className="max-w-3xl">
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[var(--d-hair)] px-3 py-1 text-xs" style={{ fontFamily: 'var(--font-plex-mono)' }}>
             Guaranteed Maximum Price — published build packages
           </div>
@@ -142,33 +143,46 @@ function Hero() {
               See How It Works
             </Link>
           </div>
-        </div>
-
-        {/* Floating ledger card. */}
-        <div className="relative hidden md:block">
-          <div className="d-reveal rounded-xl border border-[var(--d-hair)] bg-[var(--d-forest-2)]/90 p-4 backdrop-blur-md" style={{ animation: 'd-rise-in 0.8s cubic-bezier(.22,1,.36,1) forwards', animationDelay: '1.5s', opacity: 0, transform: 'translateY(16px)' }}>
-            <div className="flex items-center justify-between text-xs text-[var(--d-sage)]" style={{ fontFamily: 'var(--font-plex-mono)' }}>
-              <span>Build + Approvals</span>
-              <span className="rounded-full bg-[var(--d-brick)]/20 px-2 py-0.5 text-[var(--d-brick-lo)]">Construction</span>
-            </div>
-            <div className="mt-2 flex items-baseline justify-between">
-              <div className="text-2xl font-bold">$312K <span className="text-sm font-normal text-[var(--d-sage)]">GMP</span></div>
-              <div className="text-sm" style={{ color: 'var(--d-brick-lo)' }}>62%</div>
-            </div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--d-forest-3)]">
-              <div className="h-full rounded-full bg-[var(--d-brick)]" style={{ width: '62%' }} />
-            </div>
-          </div>
+          <p className="mt-10 text-xs text-[var(--d-sage)]">Reference photography.</p>
         </div>
       </div>
 
       <style jsx>{`
         @keyframes d-line-in { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes d-bar-wipe { 0% { transform: scaleX(0); } 45% { transform: scaleX(1); } 100% { transform: scaleX(1); opacity: 0; } }
-        @keyframes d-rise-in { to { opacity: 1; transform: translateY(0); } }
         @keyframes d-hero-zoom { from { transform: scale(1.06); } to { transform: scale(1); } }
         :global(.d-hero-img) { animation: d-hero-zoom 20s ease-out forwards; }
       `}</style>
+    </section>
+  );
+}
+
+// UI_FIX_PLAN_4 F2 — the glass stat card over the hero photo measured as
+// inseparable from the busiest part of the image and had unlabeled numbers.
+// Relocated here, below the hero, on solid --forest (no photo, no
+// backdrop-filter) with every number labeled. Not named as a specific real
+// client/project: the figures are illustrative of how a project page reads,
+// not a claim about a signed client (the earlier build used a named
+// "Lume Café" project card and that was already corrected once this
+// session for the same reason — presenting an unconfirmed project as real).
+function ProofBand() {
+  return (
+    <section className="border-t border-[var(--d-hair)] bg-[var(--d-forest)] py-16 text-[var(--d-ivory)]">
+      <div className="container">
+        <div className="rounded-2xl border border-[var(--d-hair)] bg-[var(--d-forest-2)] p-6 md:p-8">
+          <div className="text-xs uppercase tracking-[0.2em] text-[var(--d-brick-lo)]" style={{ fontFamily: 'var(--font-plex-mono)' }}>Inside a project page</div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-4 text-sm" style={{ fontFamily: 'var(--font-plex-mono)' }}>
+            <div><span className="text-[var(--d-sage)]">GMP ceiling </span><span className="font-semibold">$312,000</span></div>
+            <div><span className="text-[var(--d-sage)]">Actual spend </span><span className="font-semibold">$187,400</span></div>
+            <div><span className="text-[var(--d-sage)]">Build + Approvals</span></div>
+            <div className="font-semibold" style={{ color: 'var(--d-brick-lo)' }}>62% of ceiling</div>
+          </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--d-forest-3)]">
+            <div className="h-full rounded-full bg-[var(--d-brick)]" style={{ width: '62%' }} />
+          </div>
+          <p className="mt-6 text-sm text-[var(--d-mist)]">Every project page looks like this. Yours will too.</p>
+        </div>
+      </div>
     </section>
   );
 }
@@ -228,9 +242,15 @@ function StickyPhases() {
 
         <div className="space-y-4 min-[961px]:space-y-0">
           {PHASES.map((p, i) => (
-            <div
+            // UI_FIX_PLAN_4 F4 — a real, keyboard-reachable link, not a
+            // static card: each phase's deliverable/owner/duration detail
+            // isn't confirmed content yet, so per the plan's own fallback
+            // ("make the whole card a link... rather than shipping a dead
+            // hover") this links to /services instead of expanding in place.
+            <Link
               key={p.n}
-              className={`static rounded-xl border p-6 min-[961px]:sticky ${p.brick ? 'border-[var(--d-brick)] bg-[var(--d-brick)] text-[var(--d-ivory)]' : 'border-[var(--d-hair)] bg-[var(--d-forest-2)]'}`}
+              href="/services"
+              className={`d-phase-card group static block rounded-xl border p-6 transition-[border-color,background-color,transform] duration-[180ms] min-[961px]:sticky focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-[var(--d-brick-lo)] ${p.brick ? 'border-[var(--d-brick)] bg-[var(--d-brick)] text-[var(--d-ivory)]' : 'border-[var(--d-hair)] bg-[var(--d-forest-2)] hover:border-[var(--d-brick)] hover:bg-[var(--d-forest-3)]'}`}
               style={{ top: `${40 + i * 20}px` }}
             >
               <div className="flex items-baseline gap-4">
@@ -238,9 +258,16 @@ function StickyPhases() {
                 <span className="text-xl font-bold">{p.label}</span>
               </div>
               <p className={`mt-2 text-sm ${p.brick ? 'text-[var(--d-ivory)]/90' : 'text-[var(--d-mist)]'}`}>{p.text}</p>
-            </div>
+            </Link>
           ))}
         </div>
+        <style jsx>{`
+          .d-phase-card { transform: translateY(0); }
+          .d-phase-card:hover { transform: translateY(-1px); }
+          @media (prefers-reduced-motion: reduce) {
+            .d-phase-card:hover { transform: none; }
+          }
+        `}</style>
       </div>
     </section>
   );
