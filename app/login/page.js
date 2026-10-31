@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import SiteNav from '@/components/site-nav';
-import { Loader2, MailCheck, KeyRound } from 'lucide-react';
+import { Loader2, MailCheck, ShieldCheck } from 'lucide-react';
 
 export default function LoginPage() {
   return (
@@ -18,39 +18,104 @@ export default function LoginPage() {
   );
 }
 
+// AUTH_PASSWORD_SPEC_1.md §5 — one email field, then: password is the
+// primary action when the account has one, the emailed link is always the
+// secondary option, and "Forgot password" only shows up after a failed
+// password attempt, so it never confuses someone who has never set one.
 function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [staffMode, setStaffMode] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(null);
+  const [sentLink, setSentLink] = useState(false);
+  const [failedOnce, setFailedOnce] = useState(false);
+  const [pendingTotp, setPendingTotp] = useState(null); // { pendingToken }
+  const [totpCode, setTotpCode] = useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get('next') || '/dashboard';
 
-  async function submit(e) {
+  async function signInWithPassword(e) {
     e.preventDefault();
-    if (!email) return;
+    if (!email || !password) return;
     setLoading(true);
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(staffMode ? { email, password, next } : { email, next })
+        body: JSON.stringify({ email, password, next })
       });
-      const data = await res.json();
-      if (!res.ok) { toast.error(data.error || 'Sign-in failed'); setLoading(false); return; }
-      if (staffMode) {
-        toast.success(`Welcome back, ${data.user.name || data.user.email}`);
-        router.push(data.redirect || '/admin');
-        return;
-      }
-      setSent({ devLink: data.devLink, emailConfigured: data.emailConfigured });
+      const data = await res.json().catch(() => ({}));
       setLoading(false);
-    } catch (e) {
+      if (!res.ok) { toast.error(data.error || 'Sign-in failed'); setFailedOnce(true); return; }
+      if (data.totpRequired) { setPendingTotp({ pendingToken: data.pendingToken }); return; }
+      toast.success(`Welcome back, ${data.user.name || data.user.email}`);
+      router.push(data.redirect || '/dashboard');
+    } catch {
+      setLoading(false);
       toast.error('Network error');
-      setLoading(false);
     }
+  }
+
+  async function verifyTotp(e) {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/login/totp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pendingToken: pendingTotp.pendingToken, code: totpCode, next })
+      });
+      const data = await res.json().catch(() => ({}));
+      setLoading(false);
+      if (!res.ok) { toast.error(data.error || 'Invalid code'); setTotpCode(''); return; }
+      router.push(data.redirect || '/admin');
+    } catch {
+      setLoading(false);
+      toast.error('Network error');
+    }
+  }
+
+  async function emailMeALink() {
+    if (!email) { toast.error('Enter your email first'); return; }
+    setLoading(true);
+    try {
+      await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, next })
+      });
+      setLoading(false);
+      setSentLink(true);
+    } catch {
+      setLoading(false);
+      toast.error('Network error');
+    }
+  }
+
+  if (pendingTotp) {
+    return (
+      <>
+        <SiteNav />
+        <div className="container flex min-h-[calc(100vh-4rem)] items-center justify-center py-12">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-xl">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-primary/15"><ShieldCheck className="h-6 w-6 text-primary" /></div>
+            <h1 className="mt-4 text-center text-2xl font-bold">Enter your code</h1>
+            <p className="mt-2 text-center text-sm text-muted-foreground">Open your authenticator app and enter the current 6-digit code.</p>
+            <form onSubmit={verifyTotp} className="mt-6 space-y-4">
+              <Input
+                inputMode="numeric" autoComplete="one-time-code" required maxLength={6} autoFocus
+                value={totpCode} onChange={e => setTotpCode(e.target.value.replace(/\D/g, ''))}
+                className="text-center text-lg tracking-[0.3em]"
+              />
+              <Button type="submit" className="w-full" size="lg" disabled={loading || totpCode.length !== 6}>
+                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verifying…</> : 'Continue'}
+              </Button>
+            </form>
+            <Button variant="ghost" className="mt-4 w-full" onClick={() => { setPendingTotp(null); setTotpCode(''); }}>Start over</Button>
+          </div>
+        </div>
+      </>
+    );
   }
 
   return (
@@ -58,48 +123,42 @@ function LoginForm() {
       <SiteNav />
       <div className="container flex min-h-[calc(100vh-4rem)] items-center justify-center py-12">
         <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-xl">
-          {sent ? (
+          {sentLink ? (
             <div className="text-center">
               <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-primary/15"><MailCheck className="h-6 w-6 text-primary" /></div>
               <h1 className="mt-4 text-2xl font-bold">Check your email</h1>
               <p className="mt-2 text-sm text-muted-foreground">If an account exists for <strong className="text-foreground">{email}</strong>, we sent a one-time sign-in link. It expires in 15 minutes.</p>
-              {sent.emailConfigured === false && !sent.devLink && (
-                <p className="mt-3 text-xs text-muted-foreground">Email delivery is not configured on this server yet — contact Boro &amp; Nest to finish signing in.</p>
-              )}
-              {sent.devLink && (
-                <a href={sent.devLink} className="mt-4 inline-block text-xs text-primary underline">Dev only: open sign-in link</a>
-              )}
-              <Button variant="ghost" className="mt-6" onClick={() => setSent(null)}>Use a different email</Button>
+              <Button variant="ghost" className="mt-6" onClick={() => setSentLink(false)}>Use a different email</Button>
             </div>
           ) : (
             <>
               <div className="mb-6 text-center">
-                <div className="text-xs font-semibold uppercase tracking-widest text-primary">{staffMode ? 'Boro & Nest staff' : 'Welcome back'}</div>
-                <h1 className="mt-2 text-2xl font-bold">Sign in to Boro &amp; Nest</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {staffMode ? 'Sign in with your staff email and password.' : "Enter your email and we'll send you a secure sign-in link."}
-                </p>
+                <h1 className="text-2xl font-bold">Sign in to Boro &amp; Nest</h1>
+                <p className="mt-2 text-sm text-muted-foreground">Your password if you've set one, or we'll email you a link.</p>
               </div>
-              <form onSubmit={submit} className="space-y-4">
+              <form onSubmit={signInWithPassword} className="space-y-4">
                 <div>
                   <Label htmlFor="email">Email</Label>
                   <Input id="email" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" className="mt-1.5" />
                 </div>
-                {staffMode && (
-                  <div>
-                    <Label htmlFor="password">Password</Label>
-                    <Input id="password" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} className="mt-1.5" />
-                  </div>
-                )}
-                <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                  {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {staffMode ? 'Signing in…' : 'Sending link…'}</> : (staffMode ? 'Sign in' : 'Email me a sign-in link')}
+                <div>
+                  <Label htmlFor="password">Password</Label>
+                  <Input id="password" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} className="mt-1.5" />
+                  {failedOnce && (
+                    <div className="mt-1.5 text-right">
+                      <Link href="/forgot-password" className="text-xs text-primary hover:underline">Forgot password?</Link>
+                    </div>
+                  )}
+                </div>
+                <Button type="submit" className="w-full" size="lg" disabled={loading || !password}>
+                  {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in…</> : 'Continue with password'}
                 </Button>
               </form>
+              <Button type="button" variant="outline" className="mt-3 w-full" disabled={loading} onClick={emailMeALink}>
+                Email me a sign-in link instead
+              </Button>
               <div className="mt-6 flex flex-col items-center gap-2 text-sm text-muted-foreground">
                 <div>No account yet? <Link href="/join" className="text-primary hover:underline">Apply here</Link></div>
-                <button type="button" onClick={() => { setStaffMode(v => !v); setPassword(''); }} className="inline-flex items-center gap-1 text-xs hover:text-foreground">
-                  <KeyRound className="h-3 w-3" /> {staffMode ? 'Not staff? Sign in with an email link' : 'Staff sign-in'}
-                </button>
               </div>
             </>
           )}

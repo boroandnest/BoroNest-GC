@@ -4,13 +4,21 @@ import { HttpError } from '@/lib/api';
 import {
   getUserFromRequest, createSession, destroySession, clearSessionCookie,
   createMagicLink, consumeMagicLink, safeNext, hashPassword, verifyPassword,
-  isStaff, isVerified, rateLimit, clientIp,
+  verifyPasswordConstantTime, validatePasswordShape, isPasswordBreached,
+  isLockedOut, recordPasswordFailure, recordPasswordSuccess,
+  createPasswordResetToken, consumePasswordResetToken, invalidatePasswordResetTokens,
+  createPendingTotpToken, peekPendingTotpToken, consumePendingTotpToken,
+  isStaff, isStaffVerified, isVerified, rateLimit, clientIp, loginRateLimited, totpRateLimited,
   STAFF_ROLE, REVIEWED_ROLES
 } from '@/lib/auth';
+import { generateTotpSecret, totpUri, verifyTotpCode } from '@/lib/totp';
 import { bootstrap } from '@/lib/server/bootstrap';
 import { resolveAccess, logEvent } from '@/lib/access';
 import { j, err, ROLES, ROLE_LABELS } from '@/lib/api-helpers';
-import { sendInvitationEmail, sendScopingCallNotice, sendMagicLinkEmail, emailConfigured } from '@/lib/email';
+import {
+  sendInvitationEmail, sendScopingCallNotice, sendMagicLinkEmail,
+  sendPasswordResetEmail, sendPasswordChangedNotice
+} from '@/lib/email';
 import { saveUploadedFile, readStoredFile, checkUpload, humanSize } from '@/lib/uploads';
 import { getSignedUrl } from '@/lib/storage';
 import { toMoney, round2 } from '@/lib/money';
@@ -113,8 +121,14 @@ function cleanProfile(profile) {
 
 function sanitize(user) {
   if (!user) return null;
-  const { _id, token, passwordHash, ...rest } = user;
-  return { ...rest, isStaff: isStaff(user), status: isStaff(user) ? 'verified' : (user.status || 'verified') };
+  const { _id, token, passwordHash, totpSecret, pendingTotpSecret, pwFailCount, pwLockedUntil, ...rest } = user;
+  return {
+    ...rest,
+    isStaff: isStaff(user),
+    status: isStaff(user) ? 'verified' : (user.status || 'verified'),
+    hasPassword: !!passwordHash,
+    totpEnabled: user.totpEnabled === true
+  };
 }
 function cleanId(doc) {
   if (!doc) return doc;
@@ -133,13 +147,18 @@ function postLoginPath(user, next) {
   return next || '/dashboard';
 }
 
-// Issue a magic link and email it. In environments without email configured,
-// AUTH_DEV_LINKS=true returns the link in the response (never enable in production).
+// Issue a magic link and email it. AUTH_PASSWORD_SPEC_1.md §2 step 2: devLink
+// (and any signal about whether email is configured) must never reach a
+// production response — not behind a flag, not at all. AUTH_DEV_LINKS only
+// has an effect outside production, so a flag left on by accident in prod
+// can't resurrect this.
 async function issueMagicLink(user, next) {
   const token = await createMagicLink(user, next);
   const sent = await sendMagicLinkEmail({ toEmail: user.email, name: user.name, token });
   const out = { emailSent: !!sent?.id };
-  if (process.env.AUTH_DEV_LINKS === 'true') out.devLink = `/auth/confirm?token=${encodeURIComponent(token)}`;
+  if (process.env.NODE_ENV !== 'production' && process.env.AUTH_DEV_LINKS === 'true') {
+    out.devLink = `/auth/confirm?token=${encodeURIComponent(token)}`;
+  }
   return out;
 }
 
@@ -193,32 +212,76 @@ async function handle(request, method) {
       }
 
       // POST /api/auth/login — { email, password? }
-      // Staff sign in with a password; everyone else receives a one-time email link.
+      // AUTH_PASSWORD_SPEC_1.md §1: password is now available to any account
+      // that has set one (not staff-only); everyone else falls back to a
+      // one-time email link. Staff additionally need a TOTP step (§4) —
+      // handled by returning totpRequired instead of a session.
       if (sub === 'login' && method === 'POST') {
         const body = await readJson(request);
         const email = str(body.email, 200).toLowerCase();
         if (!email) return err('email required');
         const ip = clientIp(request);
-        if (!rateLimit(`login:${ip}`, 20, 900000) || !rateLimit(`login:${email}`, 8, 900000)) {
+        if (loginRateLimited(ip, email)) {
           return err('Too many sign-in attempts. Wait a few minutes and try again.', 429);
         }
         const user = await users.findOne({ email });
 
         if (body.password) {
-          // Same response for unknown email and wrong password.
-          if (!user || !isStaff(user) || !verifyPassword(String(body.password), user.passwordHash) || user.status === 'suspended') {
-            return err('Invalid email or password', 401);
+          // One response body/shape for every failure reason (unknown email,
+          // no password set, wrong password, suspended, locked out) — and
+          // verifyPasswordConstantTime always pays the same scrypt cost, so
+          // the one genuine branch point left (account lockout) is checked
+          // AFTER verification, not instead of it, to avoid a timing tell.
+          const passwordOk = verifyPasswordConstantTime(String(body.password), user?.passwordHash);
+          const blocked = !user || user.status === 'suspended' || isLockedOut(user);
+          if (!passwordOk || blocked) {
+            if (user && !blocked) await recordPasswordFailure(user);
+            return err('Email or password is incorrect', 401);
           }
-          await users.updateOne({ id: user.id }, { $set: { lastLoginAt: new Date() } });
-          await logEvent(null, user, STAFF_ROLE, 'login', { method: 'password' });
+          await recordPasswordSuccess(user);
+
+          if (isStaff(user)) {
+            if (user.totpEnabled) {
+              const pendingToken = await createPendingTotpToken(user);
+              return j({ totpRequired: true, pendingToken });
+            }
+            // Not yet enrolled — let them in, but requireStaff() (lib/api.js)
+            // blocks every /api/admin/** route until totpEnabled is true, so
+            // this session can only reach account/TOTP-setup endpoints.
+            await logEvent(null, user, STAFF_ROLE, 'login', { method: 'password' });
+            const cookie = await createSession(user, request);
+            return withCookies(j({ user: sanitize(user), redirect: '/account?setup=totp', totpSetupRequired: true }), cookie);
+          }
+
+          await logEvent(null, user, user.role, 'login', { method: 'password' });
           const cookie = await createSession(user, request);
           return withCookies(j({ user: sanitize(user), redirect: postLoginPath(user, safeNext(body.next)) }), cookie);
         }
 
-        // Do not reveal whether an account exists (or is staff). Staff must use their password.
-        let link = {};
-        if (user && !isStaff(user) && user.status !== 'suspended') link = await issueMagicLink(user, safeNext(body.next));
-        return j({ ok: true, emailConfigured: emailConfigured(), devLink: link.devLink });
+        // Do not reveal whether an account exists. Staff never get a magic
+        // link (password + TOTP only) — issuing one would bypass the second factor.
+        if (user && !isStaff(user) && user.status !== 'suspended') await issueMagicLink(user, safeNext(body.next));
+        return j({ ok: true });
+      }
+
+      // POST /api/auth/login/totp — { pendingToken, code } — second step for
+      // a staff account with totpEnabled. The password step already proved
+      // the credential; this only proves possession of the second factor.
+      if (sub === 'login' && rest[1] === 'totp' && method === 'POST') {
+        const body = await readJson(request);
+        const pendingToken = str(body.pendingToken, 200);
+        const code = str(body.code, 10);
+        const pending = await peekPendingTotpToken(pendingToken);
+        if (!pending) return err('This sign-in has expired. Start again.', 410);
+        const ip = clientIp(request);
+        const user = await users.findOne({ id: pending.userId });
+        if (!user || !isStaff(user) || user.status === 'suspended') return err('This sign-in has expired. Start again.', 410);
+        if (totpRateLimited(ip, user.email)) return err('Too many attempts. Wait a minute and try again.', 429);
+        if (!verifyTotpCode(user.totpSecret, code)) return err('Invalid code', 401);
+        await consumePendingTotpToken(pendingToken);
+        await logEvent(null, user, STAFF_ROLE, 'login', { method: 'password+totp' });
+        const cookie = await createSession(user, request);
+        return withCookies(j({ user: sanitize(user), redirect: postLoginPath(user, safeNext(body.next)) }), cookie);
       }
 
       // POST /api/auth/callback { token } — called by the /auth/confirm page when the user clicks "Continue".
@@ -246,18 +309,94 @@ async function handle(request, method) {
         return withCookies(j({ ok: true }), clearSessionCookie());
       }
 
-      // POST /api/auth/password — staff change their own password { currentPassword, newPassword }
+      // POST /api/auth/password — any signed-in user sets (first time) or
+      // changes (currentPassword required once one exists) their own password.
       if (sub === 'password' && method === 'POST') {
         const user = await getUserFromRequest(request);
-        if (!user || !isStaff(user)) return err('Not authorized', 403);
+        if (!user) return err('Not authenticated', 401);
         const { currentPassword, newPassword } = await readJson(request);
-        if (!verifyPassword(String(currentPassword || ''), user.passwordHash)) return err('Current password is incorrect', 401);
-        if (typeof newPassword !== 'string' || newPassword.length < 10) return err('New password must be at least 10 characters');
-        await users.updateOne({ id: user.id }, { $set: { passwordHash: hashPassword(newPassword) } });
+        if (user.passwordHash && !verifyPassword(String(currentPassword || ''), user.passwordHash)) {
+          return err('Current password is incorrect', 401);
+        }
+        const shapeProblem = validatePasswordShape(newPassword);
+        if (shapeProblem) return err(shapeProblem);
+        if (await isPasswordBreached(newPassword)) {
+          return err('This password has appeared in a public data breach. Please choose a different one.');
+        }
+        await users.updateOne({ id: user.id }, { $set: { passwordHash: hashPassword(newPassword), pwFailCount: 0, pwLockedUntil: null } });
         const sessions = await getCollection('sessions');
-        await sessions.deleteMany({ userId: user.id });
+        await sessions.deleteMany({ userId: user.id }); // every other session for this account is dead
+        await sendPasswordChangedNotice({ toEmail: user.email, name: user.name });
         const cookie = await createSession(user, request);
         return withCookies(j({ ok: true }), cookie);
+      }
+
+      // POST /api/auth/forgot-password — { email }. Same response whether or
+      // not the address exists; only emails a link if it does.
+      if (sub === 'forgot-password' && method === 'POST') {
+        const body = await readJson(request);
+        const email = str(body.email, 200).toLowerCase();
+        if (!email) return err('email required');
+        const ip = clientIp(request);
+        if (loginRateLimited(ip, email)) return err('Too many requests. Wait a few minutes and try again.', 429);
+        const user = await users.findOne({ email });
+        if (user && user.status !== 'suspended') {
+          const token = await createPasswordResetToken(user);
+          await sendPasswordResetEmail({ toEmail: user.email, name: user.name, token });
+        }
+        return j({ ok: true });
+      }
+
+      // POST /api/auth/reset-password — { token, newPassword }. Single-use,
+      // 30-minute token; invalidates every other session and notifies the
+      // address on file (SECURITY_HARDENING-adjacent: a reset that happened
+      // without you should be loud, not silent).
+      if (sub === 'reset-password' && method === 'POST') {
+        const body = await readJson(request);
+        const token = str(body.token, 200);
+        const shapeProblem = validatePasswordShape(body.newPassword);
+        if (shapeProblem) return err(shapeProblem);
+        const rec = await consumePasswordResetToken(token);
+        if (!rec) return err('This reset link has expired or was already used.', 410);
+        const user = await users.findOne({ id: rec.userId });
+        if (!user || user.status === 'suspended') return err('This reset link has expired or was already used.', 410);
+        if (await isPasswordBreached(body.newPassword)) {
+          return err('This password has appeared in a public data breach. Please choose a different one.');
+        }
+        await users.updateOne({ id: user.id }, { $set: { passwordHash: hashPassword(body.newPassword), pwFailCount: 0, pwLockedUntil: null } });
+        await invalidatePasswordResetTokens(user.id);
+        const sessions = await getCollection('sessions');
+        await sessions.deleteMany({ userId: user.id });
+        await sendPasswordChangedNotice({ toEmail: user.email, name: user.name });
+        await logEvent(null, user, user.role, 'password_reset', {});
+        return j({ ok: true });
+      }
+
+      // ---- TOTP enrollment (staff only; login-time verification is under /auth/login/totp above) ----
+
+      // POST /api/auth/totp/setup — generates a secret pending verification.
+      // Does not touch an already-enabled factor (no re-roll without proving
+      // the existing one first — not built in this pass; see PR description).
+      if (sub === 'totp' && rest[1] === 'setup' && method === 'POST') {
+        const user = await getUserFromRequest(request);
+        if (!user || !isStaff(user)) return err('Not authorized', 403);
+        if (user.totpEnabled) return err('Two-factor authentication is already enabled.', 400);
+        const secret = generateTotpSecret();
+        await users.updateOne({ id: user.id }, { $set: { pendingTotpSecret: secret } });
+        return j({ secret, otpauthUrl: totpUri({ secret, email: user.email }) });
+      }
+
+      // POST /api/auth/totp/verify-setup — { code }. Proves the authenticator
+      // app was actually configured with the secret before turning it on.
+      if (sub === 'totp' && rest[1] === 'verify-setup' && method === 'POST') {
+        const user = await getUserFromRequest(request);
+        if (!user || !isStaff(user)) return err('Not authorized', 403);
+        if (!user.pendingTotpSecret) return err('Start setup first.', 400);
+        const { code } = await readJson(request);
+        if (!verifyTotpCode(user.pendingTotpSecret, str(code, 10))) return err('Invalid code', 401);
+        await users.updateOne({ id: user.id }, { $set: { totpSecret: user.pendingTotpSecret, totpEnabled: true }, $unset: { pendingTotpSecret: '' } });
+        await logEvent(null, user, STAFF_ROLE, 'totp_enabled', {});
+        return j({ ok: true });
       }
     }
 
@@ -301,7 +440,7 @@ async function handle(request, method) {
 
       // POST /api/projects (staff create)
       if (!pid && method === 'POST') {
-        if (!isStaff(user)) return err('Only Boro & Nest staff can create projects', 403);
+        if (!isStaffVerified(user)) return err('Only Boro & Nest staff can create projects', 403);
         const body = await readJson(request);
         if (!str(body.name) || !str(body.address)) return err('name and address required');
         const count = await projects.countDocuments({ code: { $exists: true } });
@@ -616,7 +755,7 @@ async function handle(request, method) {
     // ============= ADMIN (staff only) =============
     if (root === 'admin') {
       const user = await getUserFromRequest(request);
-      if (!user || !isStaff(user)) return err('Not authorized', 403);
+      if (!user || !isStaffVerified(user)) return err('Not authorized', 403);
       const users = await getCollection('users');
 
       // GET /api/admin/users?status=pending&role=subcontractor
@@ -648,7 +787,7 @@ async function handle(request, method) {
     // ============= SUBCONTRACTOR DIRECTORY (staff only) =============
     if (root === 'subcontractors' && method === 'GET') {
       const user = await getUserFromRequest(request);
-      if (!user || !isStaff(user)) return err('Not authorized', 403);
+      if (!user || !isStaffVerified(user)) return err('Not authorized', 403);
       const list = await (await getCollection('users')).find({ role: 'subcontractor' }).toArray();
       return j({ subcontractors: list.map(sanitize) });
     }

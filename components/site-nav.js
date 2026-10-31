@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { LogOut, User, LayoutDashboard, Briefcase, FileText, Menu, ShieldCheck } from 'lucide-react';
+import { LogOut, User, LayoutDashboard, Briefcase, FileText, Menu, ShieldCheck, KeyRound } from 'lucide-react';
 
 export function openNest() {
   window.dispatchEvent(new Event('nest:open'));
@@ -98,6 +98,7 @@ export default function SiteNav() {
                   <DropdownMenuItem asChild><Link href="/dashboard/subcontractor"><FileText className="mr-2 h-4 w-4" /> My Jobs</Link></DropdownMenuItem>
                 )}
                 {!user.isStaff && <DropdownMenuItem asChild><Link href={`/join/${user.role}`}><User className="mr-2 h-4 w-4" /> Edit Profile</Link></DropdownMenuItem>}
+                <DropdownMenuItem asChild><Link href="/account"><KeyRound className="mr-2 h-4 w-4" /> Account &amp; Security</Link></DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive"><LogOut className="mr-2 h-4 w-4" /> Log Out</DropdownMenuItem>
               </DropdownMenuContent>
