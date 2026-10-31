@@ -91,12 +91,12 @@ export default function SiteSettingsPage() {
           <CardContent className="space-y-4">
             <div>
               <Label htmlFor="replyToEmail">Reply-to address</Label>
-              <Input id="replyToEmail" type="email" value={form.replyToEmail || ''} onChange={e => set('replyToEmail', e.target.value)} placeholder="jdavis@boroandnest.com" maxLength={200} />
+              <Input id="replyToEmail" type="email" value={form.replyToEmail || ''} onChange={e => set('replyToEmail', e.target.value)} placeholder="jdavis@boroandnestnyc.com" maxLength={200} />
               <p className="mt-1 text-xs text-muted-foreground">Where a client's "Reply" lands when they answer a sign-in link, invite, or COI-expiry email.</p>
             </div>
             <div>
               <Label htmlFor="adminNotifyEmail">New-request notifications</Label>
-              <Input id="adminNotifyEmail" type="email" value={form.adminNotifyEmail || ''} onChange={e => set('adminNotifyEmail', e.target.value)} placeholder="jdavis@boroandnest.com" maxLength={200} />
+              <Input id="adminNotifyEmail" type="email" value={form.adminNotifyEmail || ''} onChange={e => set('adminNotifyEmail', e.target.value)} placeholder="jdavis@boroandnestnyc.com" maxLength={200} />
               <p className="mt-1 text-xs text-muted-foreground">Where new scoping-call requests and failed-release alerts are sent.</p>
             </div>
           </CardContent>
